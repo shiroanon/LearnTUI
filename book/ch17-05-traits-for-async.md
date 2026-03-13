@@ -138,7 +138,14 @@ and calls the `trpl::join_all` function instead, which won’t compile yet.
 <Listing number="17-23" caption="Awaiting futures in a collection"  file-name="src/main.rs">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-23/src/main.rs:here}}
+        let tx_fut = async move {
+            // --snip--
+        };
+
+        let futures: Vec<Box<dyn Future<Output = ()>>> =
+            vec![Box::new(tx1_fut), Box::new(rx_fut), Box::new(tx_fut)];
+
+        trpl::join_all(futures).await;
 ```
 
 </Listing>
@@ -169,21 +176,21 @@ copy *only* the final `error` block from the errors
 ```text
 error[E0277]: `dyn Future<Output = ()>` cannot be unpinned
   --> src/main.rs:48:33
-   |
+|
 48 |         trpl::join_all(futures).await;
-   |                                 ^^^^^ the trait `Unpin` is not implemented for `dyn Future<Output = ()>`
-   |
+| ^^^^^ the trait `Unpin` is not implemented for `dyn Future<Output = ()>`
+|
    = note: consider using the `pin!` macro
            consider using `Box::pin` if you need to access the pinned value outside of the current scope
    = note: required for `Box<dyn Future<Output = ()>>` to implement `Future`
 note: required by a bound in `futures_util::future::join_all::JoinAll`
   --> file:///home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-util-0.3.30/src/future/join_all.rs:29:8
-   |
+|
 27 | pub struct JoinAll<F>
-   |            ------- required by a bound in this struct
+| ------- required by a bound in this struct
 28 | where
 29 |     F: Future,
-   |        ^^^^^^ required by this bound in `JoinAll`
+| ^^^^^^ required by this bound in `JoinAll`
 ```
 
 The note in this error message tells us that we should use the `pin!` macro to
@@ -410,7 +417,24 @@ where each of the three futures are defined and adjusting the trait object type.
 <Listing number="17-24" caption="Pinning the futures to enable moving them into the vector">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-24/src/main.rs:here}}
+use std::pin::{Pin, pin};
+
+// --snip--
+
+        let tx1_fut = pin!(async move {
+            // --snip--
+        });
+
+        let rx_fut = pin!(async {
+            // --snip--
+        });
+
+        let tx_fut = pin!(async move {
+            // --snip--
+        });
+
+        let futures: Vec<Pin<&mut dyn Future<Output = ()>>> =
+            vec![tx1_fut, rx_fut, tx_fut];
 ```
 
 </Listing>
@@ -495,7 +519,13 @@ just as we _could_ work with futures directly via their `poll` method. Using
 method so we can do just that:
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/no-listing-stream-ext/src/lib.rs:here}}
+trait StreamExt: Stream {
+    async fn next(&mut self) -> Option<Self::Item>
+    where
+        Self: Unpin;
+
+    // other methods...
+}
 ```
 
 <!--

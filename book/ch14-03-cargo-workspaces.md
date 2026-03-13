@@ -33,7 +33,8 @@ version of Cargo’s resolver algorithm in our workspace by setting the
 <span class="filename">Filename: Cargo.toml</span>
 
 ```toml
-{{#include ../listings/ch14-more-about-cargo/no-listing-01-workspace/add/Cargo.toml}}
+[workspace]
+resolver = "3"
 ```
 
 Next, we’ll create the `adder` binary crate by running `cargo new` within the
@@ -58,7 +59,9 @@ package to the `members` key in the `[workspace]` definition in the workspace
 _Cargo.toml_, like this:
 
 ```toml
-{{#include ../listings/ch14-more-about-cargo/output-only-01-adder-crate/add/Cargo.toml}}
+[workspace]
+resolver = "3"
+members = ["adder"]
 ```
 
 At this point, we can build the workspace by running `cargo build`. The files
@@ -110,7 +113,9 @@ list:
 <span class="filename">Filename: Cargo.toml</span>
 
 ```toml
-{{#include ../listings/ch14-more-about-cargo/no-listing-02-workspace-with-two-crates/add/Cargo.toml}}
+[workspace]
+resolver = "3"
+members = ["adder", "add_one"]
 ```
 
 Your _add_ directory should now have these directories and files:
@@ -134,7 +139,9 @@ In the _add_one/src/lib.rs_ file, let’s add an `add_one` function:
 <span class="filename">Filename: add_one/src/lib.rs</span>
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch14-more-about-cargo/no-listing-02-workspace-with-two-crates/add/add_one/src/lib.rs}}
+pub fn add_one(x: i32) -> i32 {
+    x + 1
+}
 ```
 
 Now we can have the `adder` package with our binary depend on the `add_one`
@@ -144,7 +151,7 @@ package that has our library. First, we’ll need to add a path dependency on
 <span class="filename">Filename: adder/Cargo.toml</span>
 
 ```toml
-{{#include ../listings/ch14-more-about-cargo/no-listing-02-workspace-with-two-crates/add/adder/Cargo.toml:6:7}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch14-more-about-cargo/no-listing-02-workspace-with-two-crates/add/adder/Cargo.toml:6
 ```
 
 Cargo doesn’t assume that crates in a workspace will depend on each other, so
@@ -157,7 +164,10 @@ function to call the `add_one` function, as in Listing 14-7.
 <Listing number="14-7" file-name="adder/src/main.rs" caption="Using the `add_one` library crate from the `adder` crate">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-07/add/adder/src/main.rs}}
+fn main() {
+    let num = 10;
+    println!("Hello, world! {num} plus one is {}!", add_one::add_one(num));
+}
 ```
 
 </Listing>
@@ -222,7 +232,7 @@ so that we can use the `rand` crate in the `add_one` crate:
 <span class="filename">Filename: add_one/Cargo.toml</span>
 
 ```toml
-{{#include ../listings/ch14-more-about-cargo/no-listing-03-workspace-with-external-dependency/add/add_one/Cargo.toml:6:7}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch14-more-about-cargo/no-listing-03-workspace-with-external-dependency/add/add_one/Cargo.toml:6
 ```
 
 We can now add `use rand;` to the _add_one/src/lib.rs_ file, and building the
@@ -245,10 +255,10 @@ $ cargo build
    Compiling add_one v0.1.0 (file:///projects/add/add_one)
 warning: unused import: `rand`
  --> add_one/src/lib.rs:1:5
-  |
+|
 1 | use rand;
-  |     ^^^^
-  |
+| ^^^^
+|
   = note: `#[warn(unused_imports)]` on by default
 
 warning: `add_one` (lib) generated 1 warning (run `cargo fix --lib -p add_one` to apply 1 suggestion)
@@ -274,9 +284,9 @@ $ cargo build
    Compiling adder v0.1.0 (file:///projects/add/adder)
 error[E0432]: unresolved import `rand`
  --> adder/src/main.rs:2:5
-  |
+|
 2 | use rand;
-  |     ^^^^ no external crate `rand`
+| ^^^^ no external crate `rand`
 ```
 
 To fix this, edit the _Cargo.toml_ file for the `adder` package and indicate
@@ -300,7 +310,19 @@ within the `add_one` crate:
 <span class="filename">Filename: add_one/src/lib.rs</span>
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch14-more-about-cargo/no-listing-04-workspace-with-tests/add/add_one/src/lib.rs}}
+pub fn add_one(x: i32) -> i32 {
+    x + 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        assert_eq!(3, add_one(2));
+    }
+}
 ```
 
 Now run `cargo test` in the top-level _add_ directory. Running `cargo test` in

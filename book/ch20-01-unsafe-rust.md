@@ -97,7 +97,10 @@ Listing 20-1 shows how to create an immutable and a mutable raw pointer.
 <Listing number="20-1" caption="Creating raw pointers with the raw borrow operators">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-01/src/main.rs:here}}
+    let mut num = 5;
+
+    let r1 = &raw const num;
+    let r2 = &raw mut num;
 ```
 
 </Listing>
@@ -125,7 +128,8 @@ possible.
 <Listing number="20-2" caption="Creating a raw pointer to an arbitrary memory address">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-02/src/main.rs:here}}
+    let address = 0x012345usize;
+    let r = address as *const i32;
 ```
 
 </Listing>
@@ -137,7 +141,15 @@ dereference operator `*` on a raw pointer that requires an `unsafe` block.
 <Listing number="20-3" caption="Dereferencing raw pointers within an `unsafe` block">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-03/src/main.rs:here}}
+    let mut num = 5;
+
+    let r1 = &raw const num;
+    let r2 = &raw mut num;
+
+    unsafe {
+        println!("r1 is: {}", *r1);
+        println!("r2 is: {}", *r2);
+    }
 ```
 
 </Listing>
@@ -175,14 +187,29 @@ Here is an unsafe function named `dangerous` that doesn’t do anything in its
 body:
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/no-listing-01-unsafe-fn/src/main.rs:here}}
+    unsafe fn dangerous() {}
+
+    unsafe {
+        dangerous();
+    }
 ```
 
 We must call the `dangerous` function within a separate `unsafe` block. If we
 try to call `dangerous` without the `unsafe` block, we’ll get an error:
 
 ```console
-{{#include ../listings/ch20-advanced-features/output-only-01-missing-unsafe/output.txt}}
+$ cargo run
+   Compiling unsafe-example v0.1.0 (file:///projects/unsafe-example)
+error[E0133]: call to unsafe function `dangerous` is unsafe and requires unsafe block
+ --> src/main.rs:4:5
+|
+4 |     dangerous();
+| ^^^^^^^^^^^ call to unsafe function
+|
+  = note: consult the function's documentation for information on how to avoid undefined behavior
+
+For more information about this error, try `rustc --explain E0133`.
+error: could not compile `unsafe-example` (bin "unsafe-example") due to 1 previous error
 ```
 
 With the `unsafe` block, we’re asserting to Rust that we’ve read the function’s
@@ -208,7 +235,14 @@ argument. Listing 20-4 shows how to use `split_at_mut`.
 <Listing number="20-4" caption="Using the safe `split_at_mut` function">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-04/src/main.rs:here}}
+    let mut v = vec![1, 2, 3, 4, 5, 6];
+
+    let r = &mut v[..];
+
+    let (a, b) = r.split_at_mut(3);
+
+    assert_eq!(a, &mut [1, 2, 3]);
+    assert_eq!(b, &mut [4, 5, 6]);
 ```
 
 </Listing>
@@ -221,7 +255,13 @@ of `i32` values rather than for a generic type `T`.
 <Listing number="20-5" caption="An attempted implementation of `split_at_mut` using only safe Rust">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-05/src/main.rs:here}}
+fn split_at_mut(values: &mut [i32], mid: usize) -> (&mut [i32], &mut [i32]) {
+    let len = values.len();
+
+    assert!(mid <= len);
+
+    (&mut values[..mid], &mut values[mid..])
+}
 ```
 
 </Listing>
@@ -239,7 +279,25 @@ slice.
 When we try to compile the code in Listing 20-5, we’ll get an error:
 
 ```console
-{{#include ../listings/ch20-advanced-features/listing-20-05/output.txt}}
+$ cargo run
+   Compiling unsafe-example v0.1.0 (file:///projects/unsafe-example)
+error[E0499]: cannot borrow `*values` as mutable more than once at a time
+ --> src/main.rs:6:31
+|
+1 | fn split_at_mut(values: &mut [i32], mid: usize) -> (&mut [i32], &mut [i32]) {
+| - let's call the lifetime of this reference `'1`
+...
+6 |     (&mut values[..mid], &mut values[mid..])
+| --------------------------^^^^^^--------
+|  |  |  |
+|  |  | second mutable borrow occurs here
+|  | first mutable borrow occurs here
+| returning this value requires that `*values` is borrowed for `'1`
+|
+  = help: use `.split_at_mut(position)` to obtain two mutable non-overlapping sub-slices
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `unsafe-example` (bin "unsafe-example") due to 1 previous error
 ```
 
 Rust’s borrow checker can’t understand that we’re borrowing different parts of
@@ -254,7 +312,21 @@ to unsafe functions to make the implementation of `split_at_mut` work.
 <Listing number="20-6" caption="Using unsafe code in the implementation of the `split_at_mut` function">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-06/src/main.rs:here}}
+use std::slice;
+
+fn split_at_mut(values: &mut [i32], mid: usize) -> (&mut [i32], &mut [i32]) {
+    let len = values.len();
+    let ptr = values.as_mut_ptr();
+
+    assert!(mid <= len);
+
+    unsafe {
+        (
+            slice::from_raw_parts_mut(ptr, mid),
+            slice::from_raw_parts_mut(ptr.add(mid), len - mid),
+        )
+    }
+}
 ```
 
 </Listing>
@@ -297,7 +369,12 @@ location and creates a slice 10,000 items long.
 <Listing number="20-7" caption="Creating a slice from an arbitrary memory location">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-07/src/main.rs:here}}
+    use std::slice;
+
+    let address = 0x01234usize;
+    let r = address as *mut i32;
+
+    let values: &[i32] = unsafe { slice::from_raw_parts_mut(r, 10000) };
 ```
 
 </Listing>
@@ -324,7 +401,15 @@ programmer to ensure safety.
 <Listing number="20-8" file-name="src/main.rs" caption="Declaring and calling an `extern` function defined in another language">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-08/src/main.rs}}
+unsafe extern "C" {
+    fn abs(input: i32) -> i32;
+}
+
+fn main() {
+    unsafe {
+        println!("Absolute value of -3 according to C: {}", abs(-3));
+    }
+}
 ```
 
 </Listing>
@@ -347,7 +432,13 @@ requires an `unsafe` block, as shown in Listing 20-9.
 <Listing number="20-9" file-name="src/main.rs" caption="Explicitly marking a function as `safe` within an `unsafe extern` block and calling it safely">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-09/src/main.rs}}
+unsafe extern "C" {
+    safe fn abs(input: i32) -> i32;
+}
+
+fn main() {
+    println!("Absolute value of -3 according to C: {}", abs(-3));
+}
 ```
 
 </Listing>
@@ -399,7 +490,11 @@ value.
 <Listing number="20-10" file-name="src/main.rs" caption="Defining and using an immutable static variable">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-10/src/main.rs}}
+static HELLO_WORLD: &str = "Hello, world!";
+
+fn main() {
+    println!("value is: {HELLO_WORLD}");
+}
 ```
 
 </Listing>
@@ -422,7 +517,24 @@ static variable named `COUNTER`.
 <Listing number="20-11" file-name="src/main.rs" caption="Reading from or writing to a mutable static variable is unsafe.">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-11/src/main.rs}}
+static mut COUNTER: u32 = 0;
+
+/// SAFETY: Calling this from more than a single thread at a time is undefined
+/// behavior, so you *must* guarantee you only call it from a single thread at
+/// a time.
+unsafe fn add_to_count(inc: u32) {
+    unsafe {
+        COUNTER += inc;
+    }
+}
+
+fn main() {
+    unsafe {
+        // SAFETY: This is only called from a single thread in `main`.
+        add_to_count(3);
+        println!("COUNTER: {}", *(&raw const COUNTER));
+    }
+}
 ```
 
 </Listing>
@@ -469,7 +581,13 @@ Listing 20-12.
 <Listing number="20-12" caption="Defining and implementing an unsafe trait">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-12/src/main.rs:here}}
+unsafe trait Foo {
+    // methods go here
+}
+
+unsafe impl Foo for i32 {
+    // method implementations go here
+}
 ```
 
 </Listing>
@@ -519,7 +637,38 @@ For an example of how helpful this can be, consider what happens when we run it
 against Listing 20-7.
 
 ```console
-{{#include ../listings/ch20-advanced-features/listing-20-07/output.txt}}
+$ cargo +nightly miri run
+   Compiling unsafe-example v0.1.0 (file:///projects/unsafe-example)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running `file:///home/.rustup/toolchains/nightly/bin/cargo-miri runner target/miri/debug/unsafe-example`
+warning: integer-to-pointer cast
+ --> src/main.rs:5:13
+|
+5 |     let r = address as *mut i32;
+| ^^^^^^^^^^^^^^^^^^^ integer-to-pointer cast
+|
+  = help: this program is using integer-to-pointer casts or (equivalently) `ptr::with_exposed_provenance`, which means that Miri might miss pointer bugs in this program
+  = help: see https://doc.rust-lang.org/nightly/std/ptr/fn.with_exposed_provenance.html for more details on that operation
+  = help: to ensure that Miri does not miss bugs in your program, use Strict Provenance APIs (https://doc.rust-lang.org/nightly/std/ptr/index.html#strict-provenance, https://crates.io/crates/sptr) instead
+  = help: you can then set `MIRIFLAGS=-Zmiri-strict-provenance` to ensure you are not relying on `with_exposed_provenance` semantics
+  = help: alternatively, `MIRIFLAGS=-Zmiri-permissive-provenance` disables this warning
+  = note: BACKTRACE:
+  = note: inside `main` at src/main.rs:5:13: 5:32
+
+error: Undefined Behavior: pointer not dereferenceable: pointer must be dereferenceable for 40000 bytes, but got 0x1234[noalloc] which is a dangling pointer (it has no provenance)
+ --> src/main.rs:7:35
+|
+7 |     let values: &[i32] = unsafe { slice::from_raw_parts_mut(r, 10000) };
+| ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Undefined Behavior occurred here
+|
+  = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+  = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+  = note: BACKTRACE:
+  = note: inside `main` at src/main.rs:7:35: 7:70
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error; 1 warning emitted
 ```
 
 Miri correctly warns us that we’re casting an integer to a pointer, which might

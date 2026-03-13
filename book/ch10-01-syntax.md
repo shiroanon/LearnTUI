@@ -19,7 +19,41 @@ function that uses generics.
 <Listing number="10-4" file-name="src/main.rs" caption="Two functions that differ only in their names and in the types in their signatures">
 
 ```rust
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-04/src/main.rs:here}}
+fn largest_i32(list: &[i32]) -> &i32 {
+    let mut largest = &list[0];
+
+    for item in list {
+        if item > largest {
+            largest = item;
+        }
+    }
+
+    largest
+}
+
+fn largest_char(list: &[char]) -> &char {
+    let mut largest = &list[0];
+
+    for item in list {
+        if item > largest {
+            largest = item;
+        }
+    }
+
+    largest
+}
+
+fn main() {
+    let number_list = vec![34, 50, 25, 100, 65];
+
+    let result = largest_i32(&number_list);
+    println!("The largest number is {result}");
+
+    let char_list = vec!['y', 'm', 'a', 'q'];
+
+    let result = largest_char(&char_list);
+    println!("The largest char is {result}");
+}
 ```
 
 </Listing>
@@ -60,7 +94,29 @@ compile yet.
 <Listing number="10-5" file-name="src/main.rs" caption="The `largest` function using generic type parameters; this doesn’t compile yet">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-05/src/main.rs}}
+fn largest<T>(list: &[T]) -> &T {
+    let mut largest = &list[0];
+
+    for item in list {
+        if item > largest {
+            largest = item;
+        }
+    }
+
+    largest
+}
+
+fn main() {
+    let number_list = vec![34, 50, 25, 100, 65];
+
+    let result = largest(&number_list);
+    println!("The largest number is {result}");
+
+    let char_list = vec!['y', 'm', 'a', 'q'];
+
+    let result = largest(&char_list);
+    println!("The largest char is {result}");
+}
 ```
 
 </Listing>
@@ -68,7 +124,23 @@ compile yet.
 If we compile this code right now, we’ll get this error:
 
 ```console
-{{#include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-05/output.txt}}
+$ cargo run
+   Compiling chapter10 v0.1.0 (file:///projects/chapter10)
+error[E0369]: binary operation `>` cannot be applied to type `&T`
+ --> src/main.rs:5:17
+|
+5 |         if item > largest {
+| ---- ^ ------- &T
+|  |
+| &T
+|
+help: consider restricting type parameter `T` with trait `PartialOrd`
+|
+1 | fn largest<T: std::cmp::PartialOrd>(list: &[T]) -> &T {
+| ++++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0369`.
+error: could not compile `chapter10` (bin "chapter10") due to 1 previous error
 ```
 
 The help text mentions `std::cmp::PartialOrd`, which is a trait, and we’re
@@ -91,7 +163,15 @@ fields using the `<>` syntax. Listing 10-6 defines a `Point<T>` struct to hold
 <Listing number="10-6" file-name="src/main.rs" caption="A `Point<T>` struct that holds `x` and `y` values of type `T`">
 
 ```rust
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-06/src/main.rs}}
+struct Point<T> {
+    x: T,
+    y: T,
+}
+
+fn main() {
+    let integer = Point { x: 5, y: 10 };
+    let float = Point { x: 1.0, y: 4.0 };
+}
 ```
 
 </Listing>
@@ -110,7 +190,14 @@ Listing 10-7, our code won’t compile.
 <Listing number="10-7" file-name="src/main.rs" caption="The fields `x` and `y` must be the same type because both have the same generic data type `T`.">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-07/src/main.rs}}
+struct Point<T> {
+    x: T,
+    y: T,
+}
+
+fn main() {
+    let wont_work = Point { x: 5, y: 4.0 };
+}
 ```
 
 </Listing>
@@ -121,7 +208,16 @@ compiler know that the generic type `T` will be an integer for this instance of
 the same type as `x`, we’ll get a type mismatch error like this:
 
 ```console
-{{#include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-07/output.txt}}
+$ cargo run
+   Compiling chapter10 v0.1.0 (file:///projects/chapter10)
+error[E0308]: mismatched types
+ --> src/main.rs:7:38
+|
+7 |     let wont_work = Point { x: 5, y: 4.0 };
+| ^^^ expected integer, found floating-point number
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `chapter10` (bin "chapter10") due to 1 previous error
 ```
 
 To define a `Point` struct where `x` and `y` are both generics but could have
@@ -132,7 +228,16 @@ and `U` where `x` is of type `T` and `y` is of type `U`.
 <Listing number="10-8" file-name="src/main.rs" caption="A `Point<T, U>` generic over two types so that `x` and `y` can be values of different types">
 
 ```rust
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-08/src/main.rs}}
+struct Point<T, U> {
+    x: T,
+    y: U,
+}
+
+fn main() {
+    let both_integer = Point { x: 5, y: 10 };
+    let both_float = Point { x: 1.0, y: 4.0 };
+    let integer_and_float = Point { x: 5, y: 4.0 };
+}
 ```
 
 </Listing>
@@ -195,7 +300,22 @@ struct we defined in Listing 10-6 with a method named `x` implemented on it.
 <Listing number="10-9" file-name="src/main.rs" caption="Implementing a method named `x` on the `Point<T>` struct that will return a reference to the `x` field of type `T`">
 
 ```rust
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-09/src/main.rs}}
+struct Point<T> {
+    x: T,
+    y: T,
+}
+
+impl<T> Point<T> {
+    fn x(&self) -> &T {
+        &self.x
+    }
+}
+
+fn main() {
+    let p = Point { x: 5, y: 10 };
+
+    println!("p.x = {}", p.x());
+}
 ```
 
 </Listing>
@@ -221,7 +341,11 @@ use the concrete type `f32`, meaning we don’t declare any types after `impl`.
 <Listing number="10-10" file-name="src/main.rs" caption="An `impl` block that only applies to a struct with a particular concrete type for the generic type parameter `T`">
 
 ```rust
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-10/src/main.rs:here}}
+impl Point<f32> {
+    fn distance_from_origin(&self) -> f32 {
+        (self.x.powi(2) + self.y.powi(2)).sqrt()
+    }
+}
 ```
 
 </Listing>
@@ -242,7 +366,28 @@ value from the passed-in `Point` (of type `Y2`).
 <Listing number="10-11" file-name="src/main.rs" caption="A method that uses generic types that are different from its struct’s definition">
 
 ```rust
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-11/src/main.rs}}
+struct Point<X1, Y1> {
+    x: X1,
+    y: Y1,
+}
+
+impl<X1, Y1> Point<X1, Y1> {
+    fn mixup<X2, Y2>(self, other: Point<X2, Y2>) -> Point<X1, Y2> {
+        Point {
+            x: self.x,
+            y: other.y,
+        }
+    }
+}
+
+fn main() {
+    let p1 = Point { x: 5, y: 10.4 };
+    let p2 = Point { x: "Hello", y: 'c' };
+
+    let p3 = p1.mixup(p2);
+
+    println!("p3.x = {}, p3.y = {}", p3.x, p3.y);
+}
 ```
 
 </Listing>

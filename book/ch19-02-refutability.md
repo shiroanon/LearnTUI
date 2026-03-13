@@ -30,7 +30,7 @@ pattern. As you might expect, this code will not compile.
 <Listing number="19-8" caption="Attempting to use a refutable pattern with `let`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-08/src/main.rs:here}}
+    let Some(x) = some_option_value;
 ```
 
 </Listing>
@@ -42,7 +42,24 @@ do with a `None` value. At compile time, Rust will complain that we’ve tried t
 use a refutable pattern where an irrefutable pattern is required:
 
 ```console
-{{#include ../listings/ch19-patterns-and-matching/listing-19-08/output.txt}}
+$ cargo run
+   Compiling patterns v0.1.0 (file:///projects/patterns)
+error[E0005]: refutable pattern in local binding
+ --> src/main.rs:3:9
+|
+3 |     let Some(x) = some_option_value;
+| ^^^^^^^ pattern `None` not covered
+|
+  = note: `let` bindings require an "irrefutable pattern", like a `struct` or an `enum` with only one variant
+  = note: for more information, visit https://doc.rust-lang.org/book/ch19-02-refutability.html
+  = note: the matched value is of type `Option<i32>`
+help: you might want to use `let else` to handle the variant that isn't matched
+|
+3 |     let Some(x) = some_option_value else { todo!() };
+| ++++++++++++++++
+
+For more information about this error, try `rustc --explain E0005`.
+error: could not compile `patterns` (bin "patterns") due to 1 previous error
 ```
 
 Because we didn’t cover (and couldn’t cover!) every valid value with the
@@ -57,7 +74,9 @@ Listing 19-8.
 <Listing number="19-9" caption="Using `let...else` and a block with refutable patterns instead of `let`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-09/src/main.rs:here}}
+    let Some(x) = some_option_value else {
+        return;
+    };
 ```
 
 </Listing>
@@ -70,7 +89,9 @@ cannot use an irrefutable pattern without receiving a warning. If we give
 <Listing number="19-10" caption="Attempting to use an irrefutable pattern with `let...else`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-10/src/main.rs:here}}
+    let x = 5 else {
+        return;
+    };
 ```
 
 </Listing>
@@ -79,7 +100,21 @@ Rust complains that it doesn’t make sense to use `let...else` with an
 irrefutable pattern:
 
 ```console
-{{#include ../listings/ch19-patterns-and-matching/listing-19-10/output.txt}}
+$ cargo run
+   Compiling patterns v0.1.0 (file:///projects/patterns)
+warning: irrefutable `let...else` pattern
+ --> src/main.rs:2:5
+|
+2 |     let x = 5 else {
+| ^^^^^^^^^
+|
+  = note: this pattern will always match, so the `else` clause is useless
+  = help: consider removing the `else` clause
+  = note: `#[warn(irrefutable_let_patterns)]` on by default
+
+warning: `patterns` (bin "patterns") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running `target/debug/patterns`
 ```
 
 For this reason, match arms must use refutable patterns, except for the last

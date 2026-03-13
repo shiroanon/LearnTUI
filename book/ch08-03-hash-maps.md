@@ -27,7 +27,12 @@ Yellow team starts with 50.
 <Listing number="8-20" caption="Creating a new hash map and inserting some keys and values">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-20/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Yellow"), 50);
 ```
 
 </Listing>
@@ -51,7 +56,15 @@ method, as shown in Listing 8-21.
 <Listing number="8-21" caption="Accessing the score for the Blue team stored in the hash map">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-21/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Yellow"), 50);
+
+    let team_name = String::from("Blue");
+    let score = scores.get(&team_name).copied().unwrap_or(0);
 ```
 
 </Listing>
@@ -67,7 +80,16 @@ We can iterate over each key-value pair in a hash map in a similar manner as we
 do with vectors, using a `for` loop:
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/no-listing-03-iterate-over-hashmap/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Yellow"), 50);
+
+    for (key, value) in &scores {
+        println!("{key}: {value}");
+    }
 ```
 
 This code will print each pair in an arbitrary order:
@@ -90,7 +112,15 @@ the hash map will be the owner of those values, as demonstrated in Listing 8-22.
 <Listing number="8-22" caption="Showing that keys and values are owned by the hash map once they’re inserted">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-22/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let field_name = String::from("Favorite color");
+    let field_value = String::from("Blue");
+
+    let mut map = HashMap::new();
+    map.insert(field_name, field_value);
+    // field_name and field_value are invalid at this point, try using them and
+    // see what compiler error you get!
 ```
 
 </Listing>
@@ -129,7 +159,14 @@ team’s key both times.
 <Listing number="8-23" caption="Replacing a value stored with a particular key">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-23/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+
+    scores.insert(String::from("Blue"), 10);
+    scores.insert(String::from("Blue"), 25);
+
+    println!("{scores:?}");
 ```
 
 </Listing>
@@ -158,7 +195,15 @@ Blue team. Using the `entry` API, the code looks like Listing 8-24.
 <Listing number="8-24" caption="Using the `entry` method to only insert if the key does not already have a value">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-24/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let mut scores = HashMap::new();
+    scores.insert(String::from("Blue"), 10);
+
+    scores.entry(String::from("Yellow")).or_insert(50);
+    scores.entry(String::from("Blue")).or_insert(50);
+
+    println!("{scores:?}");
 ```
 
 </Listing>
@@ -187,7 +232,18 @@ the value `0`.
 <Listing number="8-25" caption="Counting occurrences of words using a hash map that stores words and counts">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-25/src/main.rs:here}}
+    use std::collections::HashMap;
+
+    let text = "hello world wonderful world";
+
+    let mut map = HashMap::new();
+
+    for word in text.split_whitespace() {
+        let count = map.entry(word).or_insert(0);
+        *count += 1;
+    }
+
+    println!("{map:?}");
 ```
 
 </Listing>

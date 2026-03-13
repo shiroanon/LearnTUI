@@ -42,7 +42,58 @@ person will get. This setup is shown in Listing 13-1.
 <Listing number="13-1" file-name="src/main.rs" caption="Shirt company giveaway situation">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-01/src/main.rs}}
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum ShirtColor {
+    Red,
+    Blue,
+}
+
+struct Inventory {
+    shirts: Vec<ShirtColor>,
+}
+
+impl Inventory {
+    fn giveaway(&self, user_preference: Option<ShirtColor>) -> ShirtColor {
+        user_preference.unwrap_or_else(|| self.most_stocked())
+    }
+
+    fn most_stocked(&self) -> ShirtColor {
+        let mut num_red = 0;
+        let mut num_blue = 0;
+
+        for color in &self.shirts {
+            match color {
+                ShirtColor::Red => num_red += 1,
+                ShirtColor::Blue => num_blue += 1,
+            }
+        }
+        if num_red > num_blue {
+            ShirtColor::Red
+        } else {
+            ShirtColor::Blue
+        }
+    }
+}
+
+fn main() {
+    let store = Inventory {
+        shirts: vec![ShirtColor::Blue, ShirtColor::Red, ShirtColor::Blue],
+    };
+
+    let user_pref1 = Some(ShirtColor::Red);
+    let giveaway1 = store.giveaway(user_pref1);
+    println!(
+        "The user with preference {:?} gets {:?}",
+        user_pref1, giveaway1
+    );
+
+    let user_pref2 = None;
+    let giveaway2 = store.giveaway(user_pref2);
+    println!(
+        "The user with preference {:?} gets {:?}",
+        user_pref2, giveaway2
+    );
+}
 ```
 
 </Listing>
@@ -74,7 +125,12 @@ later if the result is needed.
 Running this code prints the following:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-01/output.txt}}
+$ cargo run
+   Compiling shirt-company v0.1.0 (file:///projects/shirt-company)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running `target/debug/shirt-company`
+The user with preference Some(Red) gets Red
+The user with preference None gets Blue
 ```
 
 One interesting aspect here is that we’ve passed a closure that calls
@@ -116,7 +172,11 @@ argument, as we did in Listing 13-1.
 <Listing number="13-2" file-name="src/main.rs" caption="Adding optional type annotations of the parameter and return value types in the closure">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-02/src/main.rs:here}}
+    let expensive_closure = |num: u32| -> u32 {
+        println!("calculating slowly...");
+        thread::sleep(Duration::from_secs(2));
+        num
+    };
 ```
 
 </Listing>
@@ -157,7 +217,10 @@ which we’ve done here with `String` the first time. If we then try to call
 <Listing number="13-3" file-name="src/main.rs" caption="Attempting to call a closure whose types are inferred with two different types">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-03/src/main.rs:here}}
+    let example_closure = |x| x;
+
+    let s = example_closure(String::from("hello"));
+    let n = example_closure(5);
 ```
 
 </Listing>
@@ -165,7 +228,35 @@ which we’ve done here with `String` the first time. If we then try to call
 The compiler gives us this error:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-03/output.txt}}
+$ cargo run
+   Compiling closure-example v0.1.0 (file:///projects/closure-example)
+error[E0308]: mismatched types
+ --> src/main.rs:5:29
+|
+5 |     let n = example_closure(5);
+| --------------- ^ expected `String`, found integer
+|  |
+| arguments to this function are incorrect
+|
+note: expected because the closure was earlier called with an argument of type `String`
+ --> src/main.rs:4:29
+|
+4 |     let s = example_closure(String::from("hello"));
+| --------------- ^^^^^^^^^^^^^^^^^^^^^ expected because this argument is of type `String`
+|  |
+| in this closure call
+note: closure parameter defined here
+ --> src/main.rs:2:28
+|
+2 |     let example_closure = |x| x;
+| ^
+help: try using a conversion method
+|
+5 |     let n = example_closure(5.to_string());
+| ++++++++++++
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `closure-example` (bin "closure-example") due to 1 previous error
 ```
 
 The first time we call `example_closure` with the `String` value, the compiler
@@ -188,7 +279,16 @@ the value.
 <Listing number="13-4" file-name="src/main.rs" caption="Defining and calling a closure that captures an immutable reference">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-04/src/main.rs}}
+fn main() {
+    let list = vec![1, 2, 3];
+    println!("Before defining closure: {list:?}");
+
+    let only_borrows = || println!("From closure: {list:?}");
+
+    println!("Before calling closure: {list:?}");
+    only_borrows();
+    println!("After calling closure: {list:?}");
+}
 ```
 
 </Listing>
@@ -203,7 +303,14 @@ the closure definition but before the closure is called, and after the closure
 is called. This code compiles, runs, and prints:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-04/output.txt}}
+$ cargo run
+   Compiling closure-example v0.1.0 (file:///projects/closure-example)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.43s
+     Running `target/debug/closure-example`
+Before defining closure: [1, 2, 3]
+Before calling closure: [1, 2, 3]
+From closure: [1, 2, 3]
+After calling closure: [1, 2, 3]
 ```
 
 Next, in Listing 13-5, we change the closure body so that it adds an element to
@@ -212,7 +319,15 @@ the `list` vector. The closure now captures a mutable reference.
 <Listing number="13-5" file-name="src/main.rs" caption="Defining and calling a closure that captures a mutable reference">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-05/src/main.rs}}
+fn main() {
+    let mut list = vec![1, 2, 3];
+    println!("Before defining closure: {list:?}");
+
+    let mut borrows_mutably = || list.push(7);
+
+    borrows_mutably();
+    println!("After calling closure: {list:?}");
+}
 ```
 
 </Listing>
@@ -220,7 +335,12 @@ the `list` vector. The closure now captures a mutable reference.
 This code compiles, runs, and prints:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-05/output.txt}}
+$ cargo run
+   Compiling closure-example v0.1.0 (file:///projects/closure-example)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.43s
+     Running `target/debug/closure-example`
+Before defining closure: [1, 2, 3]
+After calling closure: [1, 2, 3, 7]
 ```
 
 Note that there’s no longer a `println!` between the definition and the call of
@@ -245,7 +365,16 @@ to print the vector in a new thread rather than in the main thread.
 <Listing number="13-6" file-name="src/main.rs" caption="Using `move` to force the closure for the thread to take ownership of `list`">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-06/src/main.rs}}
+use std::thread;
+
+fn main() {
+    let list = vec![1, 2, 3];
+    println!("Before defining closure: {list:?}");
+
+    thread::spawn(move || println!("From thread: {list:?}"))
+        .join()
+        .unwrap();
+}
 ```
 
 </Listing>
@@ -358,7 +487,22 @@ to order them by their `width` attribute from low to high.
 <Listing number="13-7" file-name="src/main.rs" caption="Using `sort_by_key` to order rectangles by width">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-07/src/main.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let mut list = [
+        Rectangle { width: 10, height: 1 },
+        Rectangle { width: 3, height: 5 },
+        Rectangle { width: 7, height: 12 },
+    ];
+
+    list.sort_by_key(|r| r.width);
+    println!("{list:#?}");
+}
 ```
 
 </Listing>
@@ -366,7 +510,24 @@ to order them by their `width` attribute from low to high.
 This code prints:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-07/output.txt}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+     Running `target/debug/rectangles`
+[
+    Rectangle {
+        width: 3,
+        height: 5,
+    },
+    Rectangle {
+        width: 7,
+        height: 12,
+    },
+    Rectangle {
+        width: 10,
+        height: 1,
+    },
+]
 ```
 
 The reason `sort_by_key` is defined to take an `FnMut` closure is that it calls
@@ -381,7 +542,28 @@ compiler won’t let us use this closure with `sort_by_key`.
 <Listing number="13-8" file-name="src/main.rs" caption="Attempting to use an `FnOnce` closure with `sort_by_key`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-08/src/main.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let mut list = [
+        Rectangle { width: 10, height: 1 },
+        Rectangle { width: 3, height: 5 },
+        Rectangle { width: 7, height: 12 },
+    ];
+
+    let mut sort_operations = vec![];
+    let value = String::from("closure called");
+
+    list.sort_by_key(|r| {
+        sort_operations.push(value);
+        r.width
+    });
+    println!("{list:#?}");
+}
 ```
 
 </Listing>
@@ -399,7 +581,28 @@ that `value` can’t be moved out of the closure because the closure must
 implement `FnMut`:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-08/output.txt}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+error[E0507]: cannot move out of `value`, a captured variable in an `FnMut` closure
+  --> src/main.rs:18:30
+|
+15 |     let value = String::from("closure called");
+| -----   ------------------------------ move occurs because `value` has type `String`, which does not implement the `Copy` trait
+|  |
+| captured outer variable
+16 |
+17 |     list.sort_by_key(|r| {
+| --- captured by this `FnMut` closure
+18 |         sort_operations.push(value);
+| ^^^^^ `value` is moved here
+|
+help: consider cloning the value if the performance cost is acceptable
+|
+18 |         sort_operations.push(value.clone());
+| ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `rectangles` (bin "rectangles") due to 1 previous error
 ```
 
 The error points to the line in the closure body that moves `value` out of the
@@ -413,7 +616,26 @@ works with `sort_by_key` because it is only capturing a mutable reference to the
 <Listing number="13-9" file-name="src/main.rs" caption="Using an `FnMut` closure with `sort_by_key` is allowed.">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-09/src/main.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let mut list = [
+        Rectangle { width: 10, height: 1 },
+        Rectangle { width: 3, height: 5 },
+        Rectangle { width: 7, height: 12 },
+    ];
+
+    let mut num_sort_operations = 0;
+    list.sort_by_key(|r| {
+        num_sort_operations += 1;
+        r.width
+    });
+    println!("{list:#?}, sorted in {num_sort_operations} operations");
+}
 ```
 
 </Listing>

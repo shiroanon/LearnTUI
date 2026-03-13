@@ -48,7 +48,7 @@ there are two releases:
 
 ```text
 nightly: * - - * - - *
-                     |
+|
 beta:                *
 ```
 
@@ -58,7 +58,7 @@ there’s still a nightly release every night:
 
 ```text
 nightly: * - - * - - * - - * - - *
-                     |
+|
 beta:                *
 ```
 
@@ -69,7 +69,7 @@ the `beta` branch, and a new release of beta is produced:
 
 ```text
 nightly: * - - * - - * - - * - - * - - *
-                     |
+|
 beta:                * - - - - - - - - *
 ```
 
@@ -78,9 +78,9 @@ Six weeks after the first beta was created, it’s time for a stable release! Th
 
 ```text
 nightly: * - - * - - * - - * - - * - - * - * - *
-                     |
+|
 beta:                * - - - - - - - - *
-                                       |
+|
 stable:                                *
 ```
 
@@ -91,9 +91,9 @@ off of `nightly` again:
 
 ```text
 nightly: * - - * - - * - - * - - * - - * - * - *
-                     |                         |
+|  |
 beta:                * - - - - - - - - *       *
-                                       |
+|
 stable:                                *
 ```
 

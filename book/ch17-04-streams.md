@@ -37,7 +37,13 @@ stream by calling its `next` method and then awaiting the output, as in Listing
 <Listing number="17-21" caption="Creating a stream from an iterator and printing its values" file-name="src/main.rs">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-21/src/main.rs:stream}}
+        let values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let iter = values.iter().map(|n| n * 2);
+        let mut stream = trpl::stream_from_iter(iter);
+
+        while let Some(value) = stream.next().await {
+            println!("The value was: {value}");
+        }
 ```
 
 </Listing>
@@ -59,25 +65,25 @@ copy only the error output
 ```text
 error[E0599]: no method named `next` found for struct `tokio_stream::iter::Iter` in the current scope
   --> src/main.rs:10:40
-   |
+|
 10 |         while let Some(value) = stream.next().await {
-   |                                        ^^^^
-   |
+| ^^^^
+|
    = help: items from traits can only be used if the trait is in scope
 help: the following traits which provide `next` are implemented but not in scope; perhaps you want to import one of them
-   |
+|
 1  + use crate::trpl::StreamExt;
-   |
+|
 1  + use futures_util::stream::stream::StreamExt;
-   |
+|
 1  + use std::iter::Iterator;
-   |
+|
 1  + use std::str::pattern::Searcher;
-   |
+|
 help: there is a method `try_next` with a similar name
-   |
+|
 10 |         while let Some(value) = stream.try_next().await {
-   |                                        ~~~~~~~~
+| ~~~~~~~~
 ```
 
 As this output explains, the reason for the compiler error is that we need the
@@ -99,7 +105,12 @@ The fix to the compiler error is to add a `use` statement for
 <Listing number="17-22" caption="Successfully using an iterator as the basis for a stream" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-22/src/main.rs:all}}
+use trpl::StreamExt;
+
+fn main() {
+    trpl::block_on(async {
+        let values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        // --snip--
 ```
 
 </Listing>

@@ -61,7 +61,20 @@ cd ../../..
 -->
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-01/src/lib.rs}}
+pub fn add(left: u64, right: u64) -> u64 {
+    left + right
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+    }
+}
 ```
 
 </Listing>
@@ -86,7 +99,21 @@ The `cargo test` command runs all tests in our project, as shown in Listing
 <Listing number="11-2" caption="The output from running the automatically generated test">
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/listing-11-01/output.txt}}
+$ cargo test
+   Compiling adder v0.1.0 (file:///projects/adder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running unittests src/lib.rs (target/debug/deps/adder-01ad14159ff659ab)
+
+running 1 test
+test tests::it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests adder
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 </Listing>
@@ -124,14 +151,41 @@ the `it_works` function to a different name, such as `exploration`, like so:
 <span class="filename">Filename: src/lib.rs</span>
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-01-changing-test-name/src/lib.rs}}
+pub fn add(left: u64, right: u64) -> u64 {
+    left + right
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exploration() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+    }
+}
 ```
 
 Then, run `cargo test` again. The output now shows `exploration` instead of
 `it_works`:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-01-changing-test-name/output.txt}}
+$ cargo test
+   Compiling adder v0.1.0 (file:///projects/adder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running unittests src/lib.rs (target/debug/deps/adder-92948b65e88960b4)
+
+running 1 test
+test tests::exploration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests adder
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 Now we’ll add another test, but this time we’ll make a test that fails! Tests
@@ -144,7 +198,25 @@ is to call the `panic!` macro. Enter the new test as a function named
 <Listing number="11-3" file-name="src/lib.rs" caption="Adding a second test that will fail because we call the `panic!` macro">
 
 ```rust,panics,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-03/src/lib.rs}}
+pub fn add(left: u64, right: u64) -> u64 {
+    left + right
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exploration() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+    }
+
+    #[test]
+    fn another() {
+        panic!("Make this test fail");
+    }
+}
 ```
 
 </Listing>
@@ -155,7 +227,30 @@ Run the tests again using `cargo test`. The output should look like Listing
 <Listing number="11-4" caption="Test results when one test passes and one test fails">
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/listing-11-03/output.txt}}
+$ cargo test
+   Compiling adder v0.1.0 (file:///projects/adder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/adder-92948b65e88960b4)
+
+running 2 tests
+test tests::another ... FAILED
+test tests::exploration ... ok
+
+failures:
+
+---- tests::another stdout ----
+
+thread 'tests::another' panicked at src/lib.rs:17:9:
+Make this test fail
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::another
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 </Listing>
@@ -202,7 +297,17 @@ _src/lib.rs_ file, then write some tests for it using the `assert!` macro.
 <Listing number="11-5" file-name="src/lib.rs" caption="The `Rectangle` struct and its `can_hold` method from Chapter 5">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-05/src/lib.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && self.height > other.height
+    }
+}
 ```
 
 </Listing>
@@ -216,7 +321,24 @@ has a width of 5 and a height of 1.
 <Listing number="11-6" file-name="src/lib.rs" caption="A test for `can_hold` that checks whether a larger rectangle can indeed hold a smaller rectangle">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-06/src/lib.rs:here}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn larger_can_hold_smaller() {
+        let larger = Rectangle {
+            width: 8,
+            height: 7,
+        };
+        let smaller = Rectangle {
+            width: 5,
+            height: 1,
+        };
+
+        assert!(larger.can_hold(&smaller));
+    }
+}
 ```
 
 </Listing>
@@ -236,7 +358,21 @@ passed it the result of calling `larger.can_hold(&smaller)`. This expression is
 supposed to return `true`, so our test should pass. Let’s find out!
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/listing-11-06/output.txt}}
+$ cargo test
+   Compiling rectangle v0.1.0 (file:///projects/rectangle)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/rectangle-6584c4561e48942e)
+
+running 1 test
+test tests::larger_can_hold_smaller ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests rectangle
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 It does pass! Let’s add another test, this time asserting that a smaller
@@ -245,7 +381,29 @@ rectangle cannot hold a larger rectangle:
 <span class="filename">Filename: src/lib.rs</span>
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-02-adding-another-rectangle-test/src/lib.rs:here}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn larger_can_hold_smaller() {
+        // --snip--
+    }
+
+    #[test]
+    fn smaller_cannot_hold_larger() {
+        let larger = Rectangle {
+            width: 8,
+            height: 7,
+        };
+        let smaller = Rectangle {
+            width: 5,
+            height: 1,
+        };
+
+        assert!(!smaller.can_hold(&larger));
+    }
+}
 ```
 
 Because the correct result of the `can_hold` function in this case is `false`,
@@ -253,7 +411,22 @@ we need to negate that result before we pass it to the `assert!` macro. As a
 result, our test will pass if `can_hold` returns `false`:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-02-adding-another-rectangle-test/output.txt}}
+$ cargo test
+   Compiling rectangle v0.1.0 (file:///projects/rectangle)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/rectangle-6584c4561e48942e)
+
+running 2 tests
+test tests::larger_can_hold_smaller ... ok
+test tests::smaller_cannot_hold_larger ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests rectangle
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 Two tests that pass! Now let’s see what happens to our test results when we
@@ -262,13 +435,41 @@ method by replacing the greater-than sign (`>`) with a less-than sign (`<`)
 when it compares the widths:
 
 ```rust,not_desired_behavior,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-03-introducing-a-bug/src/lib.rs:here}}
+// --snip--
+impl Rectangle {
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width < other.width && self.height > other.height
+    }
+}
 ```
 
 Running the tests now produces the following:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-03-introducing-a-bug/output.txt}}
+$ cargo test
+   Compiling rectangle v0.1.0 (file:///projects/rectangle)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/rectangle-6584c4561e48942e)
+
+running 2 tests
+test tests::larger_can_hold_smaller ... FAILED
+test tests::smaller_cannot_hold_larger ... ok
+
+failures:
+
+---- tests::larger_can_hold_smaller stdout ----
+
+thread 'tests::larger_can_hold_smaller' panicked at src/lib.rs:28:9:
+assertion failed: larger.can_hold(&smaller)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::larger_can_hold_smaller
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 Our tests caught the bug! Because `larger.width` is `8` and `smaller.width` is
@@ -298,7 +499,20 @@ parameter, and then we test this function using the `assert_eq!` macro.
 <Listing number="11-7" file-name="src/lib.rs" caption="Testing the function `add_two` using the `assert_eq!` macro">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-07/src/lib.rs}}
+pub fn add_two(a: u64) -> u64 {
+    a + 2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_adds_two() {
+        let result = add_two(2);
+        assert_eq!(result, 4);
+    }
+}
 ```
 
 </Listing>
@@ -306,7 +520,21 @@ parameter, and then we test this function using the `assert_eq!` macro.
 Let’s check that it passes!
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/listing-11-07/output.txt}}
+$ cargo test
+   Compiling adder v0.1.0 (file:///projects/adder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src/lib.rs (target/debug/deps/adder-92948b65e88960b4)
+
+running 1 test
+test tests::it_adds_two ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests adder
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 We create a variable named `result` that holds the result of calling
@@ -318,13 +546,39 @@ Let’s introduce a bug into our code to see what `assert_eq!` looks like when i
 fails. Change the implementation of the `add_two` function to instead add `3`:
 
 ```rust,not_desired_behavior,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-04-bug-in-add-two/src/lib.rs:here}}
+pub fn add_two(a: u64) -> u64 {
+    a + 3
+}
 ```
 
 Run the tests again:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-04-bug-in-add-two/output.txt}}
+$ cargo test
+   Compiling adder v0.1.0 (file:///projects/adder)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running unittests src/lib.rs (target/debug/deps/adder-92948b65e88960b4)
+
+running 1 test
+test tests::it_adds_two ... FAILED
+
+failures:
+
+---- tests::it_adds_two stdout ----
+
+thread 'tests::it_adds_two' panicked at src/lib.rs:12:9:
+assertion `left == right` failed
+  left: 5
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::it_adds_two
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 Our test caught the bug! The `tests::it_adds_two` test failed, and the message
@@ -381,7 +635,20 @@ want to test that the name we pass into the function appears in the output:
 <span class="filename">Filename: src/lib.rs</span>
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-05-greeter/src/lib.rs}}
+pub fn greeting(name: &str) -> String {
+    format!("Hello {name}!")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn greeting_contains_name() {
+        let result = greeting("Carol");
+        assert!(result.contains("Carol"));
+    }
+}
 ```
 
 The requirements for this program haven’t been agreed upon yet, and we’re
@@ -395,13 +662,37 @@ Now let’s introduce a bug into this code by changing `greeting` to exclude
 `name` to see what the default test failure looks like:
 
 ```rust,not_desired_behavior,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-06-greeter-with-bug/src/lib.rs:here}}
+pub fn greeting(name: &str) -> String {
+    String::from("Hello!")
+}
 ```
 
 Running this test produces the following:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-06-greeter-with-bug/output.txt}}
+$ cargo test
+   Compiling greeter v0.1.0 (file:///projects/greeter)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running unittests src/lib.rs (target/debug/deps/greeter-170b942eb5bf5e3a)
+
+running 1 test
+test tests::greeting_contains_name ... FAILED
+
+failures:
+
+---- tests::greeting_contains_name stdout ----
+
+thread 'tests::greeting_contains_name' panicked at src/lib.rs:12:9:
+assertion failed: result.contains("Carol")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::greeting_contains_name
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 This result just indicates that the assertion failed and which line the
@@ -411,13 +702,42 @@ string with a placeholder filled in with the actual value we got from the
 `greeting` function:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-07-custom-failure-message/src/lib.rs:here}}
+    #[test]
+    fn greeting_contains_name() {
+        let result = greeting("Carol");
+        assert!(
+            result.contains("Carol"),
+            "Greeting did not contain name, value was `{result}`"
+        );
+    }
 ```
 
 Now when we run the test, we’ll get a more informative error message:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-07-custom-failure-message/output.txt}}
+$ cargo test
+   Compiling greeter v0.1.0 (file:///projects/greeter)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.93s
+     Running unittests src/lib.rs (target/debug/deps/greeter-170b942eb5bf5e3a)
+
+running 1 test
+test tests::greeting_contains_name ... FAILED
+
+failures:
+
+---- tests::greeting_contains_name stdout ----
+
+thread 'tests::greeting_contains_name' panicked at src/lib.rs:12:9:
+Greeting did not contain name, value was `Hello!`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::greeting_contains_name
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 We can see the value we actually got in the test output, which would help us
@@ -442,7 +762,30 @@ happen when we expect them to.
 <Listing number="11-8" file-name="src/lib.rs" caption="Testing that a condition will cause a `panic!`">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-08/src/lib.rs}}
+pub struct Guess {
+    value: i32,
+}
+
+impl Guess {
+    pub fn new(value: i32) -> Guess {
+        if value < 1 || value > 100 {
+            panic!("Guess value must be between 1 and 100, got {value}.");
+        }
+
+        Guess { value }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn greater_than_100() {
+        Guess::new(200);
+    }
+}
 ```
 
 </Listing>
@@ -452,20 +795,61 @@ before the test function it applies to. Let’s look at the result when this tes
 passes:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/listing-11-08/output.txt}}
+$ cargo test
+   Compiling guessing_game v0.1.0 (file:///projects/guessing_game)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src/lib.rs (target/debug/deps/guessing_game-57d70c3acb738f4d)
+
+running 1 test
+test tests::greater_than_100 - should panic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests guessing_game
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 Looks good! Now let’s introduce a bug in our code by removing the condition
 that the `new` function will panic if the value is greater than 100:
 
 ```rust,not_desired_behavior,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-08-guess-with-bug/src/lib.rs:here}}
+// --snip--
+impl Guess {
+    pub fn new(value: i32) -> Guess {
+        if value < 1 {
+            panic!("Guess value must be between 1 and 100, got {value}.");
+        }
+
+        Guess { value }
+    }
+}
 ```
 
 When we run the test in Listing 11-8, it will fail:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-08-guess-with-bug/output.txt}}
+$ cargo test
+   Compiling guessing_game v0.1.0 (file:///projects/guessing_game)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+     Running unittests src/lib.rs (target/debug/deps/guessing_game-57d70c3acb738f4d)
+
+running 1 test
+test tests::greater_than_100 - should panic ... FAILED
+
+failures:
+
+---- tests::greater_than_100 stdout ----
+note: test did not panic as expected at src/lib.rs:21:8
+
+failures:
+    tests::greater_than_100
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 We don’t get a very helpful message in this case, but when we look at the test
@@ -484,7 +868,34 @@ too large.
 <Listing number="11-9" file-name="src/lib.rs" caption="Testing for a `panic!` with a panic message containing a specified substring">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/listing-11-09/src/lib.rs:here}}
+// --snip--
+
+impl Guess {
+    pub fn new(value: i32) -> Guess {
+        if value < 1 {
+            panic!(
+                "Guess value must be greater than or equal to 1, got {value}."
+            );
+        } else if value > 100 {
+            panic!(
+                "Guess value must be less than or equal to 100, got {value}."
+            );
+        }
+
+        Guess { value }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "less than or equal to 100")]
+    fn greater_than_100() {
+        Guess::new(200);
+    }
+}
 ```
 
 </Listing>
@@ -503,13 +914,45 @@ fails, let’s again introduce a bug into our code by swapping the bodies of the
 `if value < 1` and the `else if value > 100` blocks:
 
 ```rust,ignore,not_desired_behavior
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-09-guess-with-panic-msg-bug/src/lib.rs:here}}
+        if value < 1 {
+            panic!(
+                "Guess value must be less than or equal to 100, got {value}."
+            );
+        } else if value > 100 {
+            panic!(
+                "Guess value must be greater than or equal to 1, got {value}."
+            );
+        }
 ```
 
 This time when we run the `should_panic` test, it will fail:
 
 ```console
-{{#include ../listings/ch11-writing-automated-tests/no-listing-09-guess-with-panic-msg-bug/output.txt}}
+$ cargo test
+   Compiling guessing_game v0.1.0 (file:///projects/guessing_game)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/guessing_game-57d70c3acb738f4d)
+
+running 1 test
+test tests::greater_than_100 - should panic ... FAILED
+
+failures:
+
+---- tests::greater_than_100 stdout ----
+
+thread 'tests::greater_than_100' panicked at src/lib.rs:12:13:
+Guess value must be greater than or equal to 1, got 200.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+note: panic did not contain expected string
+      panic message: "Guess value must be greater than or equal to 1, got 200."
+ expected substring: "less than or equal to 100"
+
+failures:
+    tests::greater_than_100
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 The failure message indicates that this test did indeed panic as we expected,
@@ -525,7 +968,21 @@ All of our tests so far panic when they fail. We can also write tests that use
 E>` and return an `Err` instead of panicking:
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch11-writing-automated-tests/no-listing-10-result-in-tests/src/lib.rs:here}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() -> Result<(), String> {
+        let result = add(2, 2);
+
+        if result == 4 {
+            Ok(())
+        } else {
+            Err(String::from("two plus two does not equal four"))
+        }
+    }
+}
 ```
 
 The `it_works` function now has the `Result<(), String>` return type. In the

@@ -59,7 +59,18 @@ single-threaded context, as shown in Listing 16-12.
 <Listing number="16-12" file-name="src/main.rs" caption="Exploring the API of `Mutex<T>` in a single-threaded context for simplicity">
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-12/src/main.rs}}
+use std::sync::Mutex;
+
+fn main() {
+    let m = Mutex::new(5);
+
+    {
+        let mut num = m.lock().unwrap();
+        *num = 6;
+    }
+
+    println!("m = {m:?}");
+}
 ```
 
 </Listing>
@@ -106,7 +117,28 @@ Rust helps us use it correctly.
 <Listing number="16-13" file-name="src/main.rs" caption="Ten threads, each incrementing a counter guarded by a `Mutex<T>`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-13/src/main.rs}}
+use std::sync::Mutex;
+use std::thread;
+
+fn main() {
+    let counter = Mutex::new(0);
+    let mut handles = vec![];
+
+    for _ in 0..10 {
+        let handle = thread::spawn(move || {
+            let mut num = counter.lock().unwrap();
+
+            *num += 1;
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    println!("Result: {}", *counter.lock().unwrap());
+}
 ```
 
 </Listing>
@@ -127,7 +159,32 @@ program.
 We hinted that this example wouldn’t compile. Now let’s find out why!
 
 ```console
-{{#include ../listings/ch16-fearless-concurrency/listing-16-13/output.txt}}
+$ cargo run
+   Compiling shared-state v0.1.0 (file:///projects/shared-state)
+error[E0382]: borrow of moved value: `counter`
+  --> src/main.rs:21:29
+|
+ 5 |     let counter = Mutex::new(0);
+| ------- move occurs because `counter` has type `std::sync::Mutex<i32>`, which does not implement the `Copy` trait
+...
+ 8 |     for _ in 0..10 {
+| -------------- inside of this loop
+ 9 |         let handle = thread::spawn(move || {
+| ------- value moved into closure here, in previous iteration of loop
+...
+21 |     println!("Result: {}", *counter.lock().unwrap());
+| ^^^^^^^ value borrowed here after move
+|
+help: consider moving the expression out of the loop so it is only moved once
+|
+ 8 ~     let mut value = counter.lock();
+ 9 ~     for _ in 0..10 {
+10 |         let handle = thread::spawn(move || {
+11 ~             let mut num = value.unwrap();
+|
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `shared-state` (bin "shared-state") due to 1 previous error
 ```
 
 The error message states that the `counter` value was moved in the previous
@@ -145,7 +202,30 @@ the `Rc<T>` before moving ownership to the thread.
 <Listing number="16-14" file-name="src/main.rs" caption="Attempting to use `Rc<T>` to allow multiple threads to own the `Mutex<T>`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-14/src/main.rs}}
+use std::rc::Rc;
+use std::sync::Mutex;
+use std::thread;
+
+fn main() {
+    let counter = Rc::new(Mutex::new(0));
+    let mut handles = vec![];
+
+    for _ in 0..10 {
+        let counter = Rc::clone(&counter);
+        let handle = thread::spawn(move || {
+            let mut num = counter.lock().unwrap();
+
+            *num += 1;
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    println!("Result: {}", *counter.lock().unwrap());
+}
 ```
 
 </Listing>
@@ -154,7 +234,34 @@ Once again, we compile and get... different errors! The compiler is teaching us
 a lot:
 
 ```console
-{{#include ../listings/ch16-fearless-concurrency/listing-16-14/output.txt}}
+$ cargo run
+   Compiling shared-state v0.1.0 (file:///projects/shared-state)
+error[E0277]: `Rc<std::sync::Mutex<i32>>` cannot be sent between threads safely
+  --> src/main.rs:11:36
+|
+11 |           let handle = thread::spawn(move || {
+| ------------- ^------
+|  |  |
+| ______________________ | _____________within this `{closure@src/main.rs:11:36: 11:43}`
+|  |  |
+|  | required by a bound introduced by this call
+12 | |             let mut num = counter.lock().unwrap();
+13 | |
+14 | |             *num += 1;
+15 | |         });
+|  | _________^ `Rc<std::sync::Mutex<i32>>` cannot be sent between threads safely
+|
+   = help: within `{closure@src/main.rs:11:36: 11:43}`, the trait `Send` is not implemented for `Rc<std::sync::Mutex<i32>>`
+note: required because it's used within this closure
+  --> src/main.rs:11:36
+|
+11 |         let handle = thread::spawn(move || {
+| ^^^^^^^
+note: required by a bound in `spawn`
+  --> /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/std/src/thread/mod.rs:723:1
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `shared-state` (bin "shared-state") due to 1 previous error
 ```
 
 Wow, that error message is very wordy! Here’s the important part to focus on:
@@ -197,7 +304,29 @@ our program by changing the `use` line, the call to `new`, and the call to
 <Listing number="16-15" file-name="src/main.rs" caption="Using an `Arc<T>` to wrap the `Mutex<T>` to be able to share ownership across multiple threads">
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-15/src/main.rs}}
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let counter = Arc::new(Mutex::new(0));
+    let mut handles = vec![];
+
+    for _ in 0..10 {
+        let counter = Arc::clone(&counter);
+        let handle = thread::spawn(move || {
+            let mut num = counter.lock().unwrap();
+
+            *num += 1;
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    println!("Result: {}", *counter.lock().unwrap());
+}
 ```
 
 </Listing>

@@ -37,7 +37,17 @@ gets an incoming stream, it will print `Connection established!`.
 <Listing number="21-1" file-name="src/main.rs" caption="Listening for incoming streams and printing a message when we receive a stream">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-01/src/main.rs}}
+use std::net::TcpListener;
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+
+        println!("Connection established!");
+    }
+}
 ```
 
 </Listing>
@@ -135,7 +145,31 @@ code to look like Listing 21-2.
 <Listing number="21-2" file-name="src/main.rs" caption="Reading from the `TcpStream` and printing the data">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-02/src/main.rs}}
+use std::{
+    io::{BufReader, prelude::*},
+    net::{TcpListener, TcpStream},
+};
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+
+        handle_connection(stream);
+    }
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    println!("Request: {http_request:#?}");
+}
 ```
 
 </Listing>
@@ -292,7 +326,18 @@ Listing 21-3.
 <Listing number="21-3" file-name="src/main.rs" caption="Writing a tiny successful HTTP response to the stream">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-03/src/main.rs:here}}
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    let response = "HTTP/1.1 200 OK\r\n\r\n";
+
+    stream.write_all(response.as_bytes()).unwrap();
+}
 ```
 
 </Listing>
@@ -320,7 +365,17 @@ possibility.
 <Listing number="21-4" file-name="hello.html" caption="A sample HTML file to return in a response">
 
 ```html
-{{#include ../listings/ch21-web-server/listing-21-05/hello.html}}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Hello!</title>
+  </head>
+  <body>
+    <h1>Hello!</h1>
+    <p>Hi from Rust</p>
+  </body>
+</html>
 ```
 
 </Listing>
@@ -333,7 +388,30 @@ and send it.
 <Listing number="21-5" file-name="src/main.rs" caption="Sending the contents of *hello.html* as the body of the response">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-05/src/main.rs:here}}
+use std::{
+    fs,
+    io::{BufReader, prelude::*},
+    net::{TcpListener, TcpStream},
+};
+// --snip--
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    let status_line = "HTTP/1.1 200 OK";
+    let contents = fs::read_to_string("hello.html").unwrap();
+    let length = contents.len();
+
+    let response =
+        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+    stream.write_all(response.as_bytes()).unwrap();
+}
 ```
 
 </Listing>
@@ -372,7 +450,26 @@ received against what we know a request for _/_ looks like and adds `if` and
 <Listing number="21-6" file-name="src/main.rs" caption="Handling requests to */* differently from other requests">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-06/src/main.rs:here}}
+// --snip--
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&stream);
+    let request_line = buf_reader.lines().next().unwrap().unwrap();
+
+    if request_line == "GET / HTTP/1.1" {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("hello.html").unwrap();
+        let length = contents.len();
+
+        let response = format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        );
+
+        stream.write_all(response.as_bytes()).unwrap();
+    } else {
+        // some other request
+    }
+}
 ```
 
 </Listing>
@@ -405,7 +502,18 @@ indicating the response to the end user.
 <Listing number="21-7" file-name="src/main.rs" caption="Responding with status code 404 and an error page if anything other than */* was requested">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-07/src/main.rs:here}}
+    // --snip--
+    } else {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("404.html").unwrap();
+        let length = contents.len();
+
+        let response = format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        );
+
+        stream.write_all(response.as_bytes()).unwrap();
+    }
 ```
 
 </Listing>
@@ -419,7 +527,17 @@ Listing 21-8.
 <Listing number="21-8" file-name="404.html" caption="Sample content for the page to send back with any 404 response">
 
 ```html
-{{#include ../listings/ch21-web-server/listing-21-07/404.html}}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Hello!</title>
+  </head>
+  <body>
+    <h1>Oops!</h1>
+    <p>Sorry, I don't know what you're asking for.</p>
+  </body>
+</html>
 ```
 
 </Listing>
@@ -446,7 +564,25 @@ the large `if` and `else` blocks.
 <Listing number="21-9" file-name="src/main.rs" caption="Refactoring the `if` and `else` blocks to contain only the code that differs between the two cases">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-09/src/main.rs:here}}
+// --snip--
+
+fn handle_connection(mut stream: TcpStream) {
+    // --snip--
+
+    let (status_line, filename) = if request_line == "GET / HTTP/1.1" {
+        ("HTTP/1.1 200 OK", "hello.html")
+    } else {
+        ("HTTP/1.1 404 NOT FOUND", "404.html")
+    };
+
+    let contents = fs::read_to_string(filename).unwrap();
+    let length = contents.len();
+
+    let response =
+        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+    stream.write_all(response.as_bytes()).unwrap();
+}
 ```
 
 </Listing>

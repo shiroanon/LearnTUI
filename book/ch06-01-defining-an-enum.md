@@ -25,7 +25,10 @@ listing the possible kinds an IP address can be, `V4` and `V6`. These are the
 variants of the enum:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-01-defining-enums/src/main.rs:def}}
+enum IpAddrKind {
+    V4,
+    V6,
+}
 ```
 
 `IpAddrKind` is now a custom data type that we can use elsewhere in our code.
@@ -35,7 +38,8 @@ variants of the enum:
 We can create instances of each of the two variants of `IpAddrKind` like this:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-01-defining-enums/src/main.rs:instance}}
+    let four = IpAddrKind::V4;
+    let six = IpAddrKind::V6;
 ```
 
 Note that the variants of the enum are namespaced under its identifier, and we
@@ -44,13 +48,14 @@ use a double colon to separate the two. This is useful because now both values
 can then, for instance, define a function that takes any `IpAddrKind`:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-01-defining-enums/src/main.rs:fn}}
+fn route(ip_kind: IpAddrKind) {}
 ```
 
 And we can call this function with either variant:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-01-defining-enums/src/main.rs:fn_call}}
+    route(IpAddrKind::V4);
+    route(IpAddrKind::V6);
 ```
 
 Using enums has even more advantages. Thinking more about our IP address type,
@@ -62,7 +67,25 @@ Listing 6-1.
 <Listing number="6-1" caption="Storing the data and `IpAddrKind` variant of an IP address using a `struct`">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-01/src/main.rs:here}}
+    enum IpAddrKind {
+        V4,
+        V6,
+    }
+
+    struct IpAddr {
+        kind: IpAddrKind,
+        address: String,
+    }
+
+    let home = IpAddr {
+        kind: IpAddrKind::V4,
+        address: String::from("127.0.0.1"),
+    };
+
+    let loopback = IpAddr {
+        kind: IpAddrKind::V6,
+        address: String::from("::1"),
+    };
 ```
 
 </Listing>
@@ -82,7 +105,14 @@ variant. This new definition of the `IpAddr` enum says that both `V4` and `V6`
 variants will have associated `String` values:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-02-enum-with-data/src/main.rs:here}}
+    enum IpAddr {
+        V4(String),
+        V6(String),
+    }
+
+    let home = IpAddr::V4(String::from("127.0.0.1"));
+
+    let loopback = IpAddr::V6(String::from("::1"));
 ```
 
 We attach data to each variant of the enum directly, so there is no need for an
@@ -101,7 +131,14 @@ still express `V6` addresses as one `String` value, we wouldn’t be able to wit
 a struct. Enums handle this case with ease:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-03-variants-with-different-data/src/main.rs:here}}
+    enum IpAddr {
+        V4(u8, u8, u8, u8),
+        V6(String),
+    }
+
+    let home = IpAddr::V4(127, 0, 0, 1);
+
+    let loopback = IpAddr::V6(String::from("::1"));
 ```
 
 We’ve shown several different ways to define data structures to store version
@@ -144,7 +181,12 @@ variety of types embedded in its variants.
 <Listing number="6-2" caption="A `Message` enum whose variants each store different amounts and types of values">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-02/src/main.rs:here}}
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(i32, i32, i32),
+}
 ```
 
 </Listing>
@@ -163,7 +205,13 @@ type. The following structs could hold the same data that the preceding enum
 variants hold:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-04-structs-similar-to-message-enum/src/main.rs:here}}
+struct QuitMessage; // unit struct
+struct MoveMessage {
+    x: i32,
+    y: i32,
+}
+struct WriteMessage(String); // tuple struct
+struct ChangeColorMessage(i32, i32, i32); // tuple struct
 ```
 
 But if we used the different structs, each of which has its own type, we
@@ -175,7 +223,14 @@ define methods on structs using `impl`, we’re also able to define methods on
 enums. Here’s a method named `call` that we could define on our `Message` enum:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-05-methods-on-enums/src/main.rs:here}}
+    impl Message {
+        fn call(&self) {
+            // method body would be defined here
+        }
+    }
+
+    let m = Message::Write(String::from("hello"));
+    m.call();
 ```
 
 The body of the method would use `self` to get the value that we called the
@@ -256,7 +311,10 @@ a different type. Here are some examples of using `Option` values to hold
 number types and char types:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-06-option-examples/src/main.rs:here}}
+    let some_number = Some(5);
+    let some_char = Some('e');
+
+    let absent_number: Option<i32> = None;
 ```
 
 The type of `some_number` is `Option<i32>`. The type of `some_char` is
@@ -278,13 +336,32 @@ definitely a valid value. For example, this code won’t compile, because it’s
 trying to add an `i8` to an `Option<i8>`:
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-07-cant-use-option-directly/src/main.rs:here}}
+    let x: i8 = 5;
+    let y: Option<i8> = Some(5);
+
+    let sum = x + y;
 ```
 
 If we run this code, we get an error message like this one:
 
 ```console
-{{#include ../listings/ch06-enums-and-pattern-matching/no-listing-07-cant-use-option-directly/output.txt}}
+$ cargo run
+   Compiling enums v0.1.0 (file:///projects/enums)
+error[E0277]: cannot add `Option<i8>` to `i8`
+ --> src/main.rs:5:17
+|
+5 |     let sum = x + y;
+| ^ no implementation for `i8 + Option<i8>`
+|
+  = help: the trait `Add<Option<i8>>` is not implemented for `i8`
+  = help: the following other types implement trait `Add<Rhs>`:
+            `&i8` implements `Add<i8>`
+            `&i8` implements `Add`
+            `i8` implements `Add<&i8>`
+            `i8` implements `Add`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `enums` (bin "enums") due to 1 previous error
 ```
 
 Intense! In effect, this error message means that Rust doesn’t understand how

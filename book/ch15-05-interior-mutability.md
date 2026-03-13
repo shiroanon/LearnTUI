@@ -87,13 +87,30 @@ A consequence of the borrowing rules is that when you have an immutable value,
 you can’t borrow it mutably. For example, this code won’t compile:
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch15-smart-pointers/no-listing-01-cant-borrow-immutable-as-mutable/src/main.rs}}
+fn main() {
+    let x = 5;
+    let y = &mut x;
+}
 ```
 
 If you tried to compile this code, you’d get the following error:
 
 ```console
-{{#include ../listings/ch15-smart-pointers/no-listing-01-cant-borrow-immutable-as-mutable/output.txt}}
+$ cargo run
+   Compiling borrowing v0.1.0 (file:///projects/borrowing)
+error[E0596]: cannot borrow `x` as mutable, as it is not declared as mutable
+ --> src/main.rs:3:13
+|
+3 |     let y = &mut x;
+| ^^^^^^ cannot borrow as mutable
+|
+help: consider changing this to be mutable
+|
+2 |     let mut x = 5;
+| +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `borrowing` (bin "borrowing") due to 1 previous error
 ```
 
 However, there are situations in which it would be useful for a value to mutate
@@ -144,7 +161,44 @@ provide, called `Messenger`. Listing 15-20 shows the library code.
 <Listing number="15-20" file-name="src/lib.rs" caption="A library to keep track of how close a value is to a maximum value and warn when the value is at certain levels">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-20/src/lib.rs}}
+pub trait Messenger {
+    fn send(&self, msg: &str);
+}
+
+pub struct LimitTracker<'a, T: Messenger> {
+    messenger: &'a T,
+    value: usize,
+    max: usize,
+}
+
+impl<'a, T> LimitTracker<'a, T>
+where
+    T: Messenger,
+{
+    pub fn new(messenger: &'a T, max: usize) -> LimitTracker<'a, T> {
+        LimitTracker {
+            messenger,
+            value: 0,
+            max,
+        }
+    }
+
+    pub fn set_value(&mut self, value: usize) {
+        self.value = value;
+
+        let percentage_of_max = self.value as f64 / self.max as f64;
+
+        if percentage_of_max >= 1.0 {
+            self.messenger.send("Error: You are over your quota!");
+        } else if percentage_of_max >= 0.9 {
+            self.messenger
+                .send("Urgent warning: You've used up over 90% of your quota!");
+        } else if percentage_of_max >= 0.75 {
+            self.messenger
+                .send("Warning: You've used up over 75% of your quota!");
+        }
+    }
+}
 ```
 
 </Listing>
@@ -170,7 +224,38 @@ implement a mock object to do just that, but the borrow checker won’t allow it
 <Listing number="15-21" file-name="src/lib.rs" caption="An attempt to implement a `MockMessenger` that isn’t allowed by the borrow checker">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-21/src/lib.rs:here}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockMessenger {
+        sent_messages: Vec<String>,
+    }
+
+    impl MockMessenger {
+        fn new() -> MockMessenger {
+            MockMessenger {
+                sent_messages: vec![],
+            }
+        }
+    }
+
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            self.sent_messages.push(String::from(message));
+        }
+    }
+
+    #[test]
+    fn it_sends_an_over_75_percent_warning_message() {
+        let mock_messenger = MockMessenger::new();
+        let mut limit_tracker = LimitTracker::new(&mock_messenger, 100);
+
+        limit_tracker.set_value(80);
+
+        assert_eq!(mock_messenger.sent_messages.len(), 1);
+    }
+}
 ```
 
 </Listing>
@@ -196,7 +281,25 @@ track of should now have one message in it.
 However, there’s one problem with this test, as shown here:
 
 ```console
-{{#include ../listings/ch15-smart-pointers/listing-15-21/output.txt}}
+$ cargo test
+   Compiling limit-tracker v0.1.0 (file:///projects/limit-tracker)
+error[E0596]: cannot borrow `self.sent_messages` as mutable, as it is behind a `&` reference
+  --> src/lib.rs:58:13
+|
+58 |             self.sent_messages.push(String::from(message));
+| ^^^^^^^^^^^^^^^^^^ `self` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+|
+help: consider changing this to be a mutable reference in the `impl` method and the `trait` definition
+|
+ 2 ~     fn send(&mut self, msg: &str);
+ 3 | }
+...
+56 |     impl Messenger for MockMessenger {
+57 ~         fn send(&mut self, message: &str) {
+|
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `limit-tracker` (lib test) due to 1 previous error
 ```
 
 We can’t modify the `MockMessenger` to keep track of the messages, because the
@@ -214,7 +317,36 @@ what that looks like.
 <Listing number="15-22" file-name="src/lib.rs" caption="Using `RefCell<T>` to mutate an inner value while the outer value is considered immutable">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-22/src/lib.rs:here}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct MockMessenger {
+        sent_messages: RefCell<Vec<String>>,
+    }
+
+    impl MockMessenger {
+        fn new() -> MockMessenger {
+            MockMessenger {
+                sent_messages: RefCell::new(vec![]),
+            }
+        }
+    }
+
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            self.sent_messages.borrow_mut().push(String::from(message));
+        }
+    }
+
+    #[test]
+    fn it_sends_an_over_75_percent_warning_message() {
+        // --snip--
+
+        assert_eq!(mock_messenger.sent_messages.borrow().len(), 1);
+    }
+}
 ```
 
 </Listing>
@@ -266,7 +398,15 @@ at runtime.
 <Listing number="15-23" file-name="src/lib.rs" caption="Creating two mutable references in the same scope to see that `RefCell<T>` will panic">
 
 ```rust,ignore,panics
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-23/src/lib.rs:here}}
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            let mut one_borrow = self.sent_messages.borrow_mut();
+            let mut two_borrow = self.sent_messages.borrow_mut();
+
+            one_borrow.push(String::from(message));
+            two_borrow.push(String::from(message));
+        }
+    }
 ```
 
 </Listing>
@@ -278,7 +418,29 @@ which isn’t allowed. When we run the tests for our library, the code in Listin
 15-23 will compile without any errors, but the test will fail:
 
 ```console
-{{#include ../listings/ch15-smart-pointers/listing-15-23/output.txt}}
+$ cargo test
+   Compiling limit-tracker v0.1.0 (file:///projects/limit-tracker)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running unittests src/lib.rs (target/debug/deps/limit_tracker-e599811fa246dbde)
+
+running 1 test
+test tests::it_sends_an_over_75_percent_warning_message ... FAILED
+
+failures:
+
+---- tests::it_sends_an_over_75_percent_warning_message stdout ----
+
+thread 'tests::it_sends_an_over_75_percent_warning_message' panicked at src/lib.rs:60:53:
+RefCell already borrowed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::it_sends_an_over_75_percent_warning_message
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
 ```
 
 Notice that the code panicked with the message `already borrowed:
@@ -319,7 +481,30 @@ the lists.
 <Listing number="15-24" file-name="src/main.rs" caption="Using `Rc<RefCell<i32>>` to create a `List` that we can mutate">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-24/src/main.rs}}
+#[derive(Debug)]
+enum List {
+    Cons(Rc<RefCell<i32>>, Rc<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let value = Rc::new(RefCell::new(5));
+
+    let a = Rc::new(Cons(Rc::clone(&value), Rc::new(Nil)));
+
+    let b = Cons(Rc::new(RefCell::new(3)), Rc::clone(&a));
+    let c = Cons(Rc::new(RefCell::new(4)), Rc::clone(&a));
+
+    *value.borrow_mut() += 10;
+
+    println!("a after = {a:?}");
+    println!("b after = {b:?}");
+    println!("c after = {c:?}");
+}
 ```
 
 </Listing>
@@ -346,7 +531,13 @@ When we print `a`, `b`, and `c`, we can see that they all have the modified
 value of `15` rather than `5`:
 
 ```console
-{{#include ../listings/ch15-smart-pointers/listing-15-24/output.txt}}
+$ cargo run
+   Compiling cons-list v0.1.0 (file:///projects/cons-list)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running `target/debug/cons-list`
+a after = Cons(RefCell { value: 15 }, Nil)
+b after = Cons(RefCell { value: 3 }, Cons(RefCell { value: 15 }, Nil))
+c after = Cons(RefCell { value: 4 }, Cons(RefCell { value: 15 }, Nil))
 ```
 
 This technique is pretty neat! By using `RefCell<T>`, we have an outwardly

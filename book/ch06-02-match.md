@@ -27,7 +27,21 @@ in Listing 6-3.
 <Listing number="6-3" caption="An enum and a `match` expression that has the variants of the enum as its patterns">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-03/src/main.rs:here}}
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter,
+}
+
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => 1,
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+    }
+}
 ```
 
 </Listing>
@@ -62,7 +76,17 @@ following the arm is then optional. For example, the following code prints
 still returns the last value of the block, `1`:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-08-match-arm-multiple-lines/src/main.rs:here}}
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => {
+            println!("Lucky penny!");
+            1
+        }
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+    }
+}
 ```
 
 ### Patterns That Bind to Values
@@ -81,7 +105,19 @@ stored inside it, which we’ve done in Listing 6-4.
 <Listing number="6-4" caption="A `Coin` enum in which the `Quarter` variant also holds a `UsState` value">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-04/src/main.rs:here}}
+#[derive(Debug)] // so we can inspect the state in a minute
+enum UsState {
+    Alabama,
+    Alaska,
+    // --snip--
+}
+
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter(UsState),
+}
 ```
 
 </Listing>
@@ -97,7 +133,17 @@ pattern that matches values of the variant `Coin::Quarter`. When a
 quarter’s state. Then, we can use `state` in the code for that arm, like so:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-09-variable-in-pattern/src/main.rs:here}}
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => 1,
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter(state) => {
+            println!("State quarter from {state:?}!");
+            25
+        }
+    }
+}
 ```
 
 If we were to call `value_in_cents(Coin::Quarter(UsState::Alaska))`, `coin`
@@ -131,7 +177,20 @@ Listing 6-5.
 <Listing number="6-5" caption="A function that uses a `match` expression on an `Option<i32>`">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-05/src/main.rs:here}}
+    fn plus_one(x: Option<i32>) -> Option<i32> {
+        match x {
+            // ANCHOR: first_arm
+            None => None,
+            // ANCHOR_END: first_arm
+            // ANCHOR: second_arm
+            Some(i) => Some(i + 1),
+            // ANCHOR_END: second_arm
+        }
+    }
+
+    let five = Some(5);
+    let six = plus_one(five);
+    let none = plus_one(None);
 ```
 
 </Listing>
@@ -141,14 +200,14 @@ Let’s examine the first execution of `plus_one` in more detail. When we call
 value `Some(5)`. We then compare that against each match arm:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-05/src/main.rs:first_arm}}
+            None => None,
 ```
 
 The `Some(5)` value doesn’t match the pattern `None`, so we continue to the
 next arm:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-05/src/main.rs:second_arm}}
+            Some(i) => Some(i + 1),
 ```
 
 Does `Some(5)` match `Some(i)`? It does! We have the same variant. The `i`
@@ -160,7 +219,7 @@ Now let’s consider the second call of `plus_one` in Listing 6-5, where `x` is
 `None`. We enter the `match` and compare to the first arm:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-05/src/main.rs:first_arm}}
+            None => None,
 ```
 
 It matches! There’s no value to add to, so the program stops and returns the
@@ -180,7 +239,11 @@ cover all possibilities. Consider this version of our `plus_one` function,
 which has a bug and won’t compile:
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-10-non-exhaustive-match/src/main.rs:here}}
+    fn plus_one(x: Option<i32>) -> Option<i32> {
+        match x {
+            Some(i) => Some(i + 1),
+        }
+    }
 ```
 
 We didn’t handle the `None` case, so this code will cause a bug. Luckily, it’s
@@ -188,7 +251,28 @@ a bug Rust knows how to catch. If we try to compile this code, we’ll get this
 error:
 
 ```console
-{{#include ../listings/ch06-enums-and-pattern-matching/no-listing-10-non-exhaustive-match/output.txt}}
+$ cargo run
+   Compiling enums v0.1.0 (file:///projects/enums)
+error[E0004]: non-exhaustive patterns: `None` not covered
+ --> src/main.rs:3:15
+|
+3 |         match x {
+| ^ pattern `None` not covered
+|
+note: `Option<i32>` defined here
+ --> /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/option.rs:593:1
+ ::: /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/option.rs:597:5
+|
+  = note: not covered
+  = note: the matched value is of type `Option<i32>`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+|
+4 ~             Some(i) => Some(i + 1),
+5 ~             None => todo!(),
+|
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `enums` (bin "enums") due to 1 previous error
 ```
 
 Rust knows that we didn’t cover every possible case and even knows which
@@ -211,7 +295,16 @@ functions without bodies because actually implementing them is out of scope for
 this example:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-15-binding-catchall/src/main.rs:here}}
+    let dice_roll = 9;
+    match dice_roll {
+        3 => add_fancy_hat(),
+        7 => remove_fancy_hat(),
+        other => move_player(other),
+    }
+
+    fn add_fancy_hat() {}
+    fn remove_fancy_hat() {}
+    fn move_player(num_spaces: u8) {}
 ```
 
 For the first two arms, the patterns are the literal values `3` and `7`. For
@@ -237,7 +330,16 @@ a 7, you must roll again. We no longer need to use the catch-all value, so we
 can change our code to use `_` instead of the variable named `other`:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-16-underscore-catchall/src/main.rs:here}}
+    let dice_roll = 9;
+    match dice_roll {
+        3 => add_fancy_hat(),
+        7 => remove_fancy_hat(),
+        _ => reroll(),
+    }
+
+    fn add_fancy_hat() {}
+    fn remove_fancy_hat() {}
+    fn reroll() {}
 ```
 
 This example also meets the exhaustiveness requirement because we’re explicitly
@@ -249,7 +351,15 @@ that by using the unit value (the empty tuple type we mentioned in [“The Tuple
 Type”][tuples]<!-- ignore --> section) as the code that goes with the `_` arm:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-17-underscore-unit/src/main.rs:here}}
+    let dice_roll = 9;
+    match dice_roll {
+        3 => add_fancy_hat(),
+        7 => remove_fancy_hat(),
+        _ => (),
+    }
+
+    fn add_fancy_hat() {}
+    fn remove_fancy_hat() {}
 ```
 
 Here, we’re telling Rust explicitly that we aren’t going to use any other value

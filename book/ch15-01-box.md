@@ -41,7 +41,10 @@ Listing 15-1 shows how to use a box to store an `i32` value on the heap.
 <Listing number="15-1" file-name="src/main.rs" caption="Storing an `i32` value on the heap using a box">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-01/src/main.rs}}
+fn main() {
+    let b = Box::new(5);
+    println!("b = {b}");
+}
 ```
 
 </Listing>
@@ -115,7 +118,10 @@ we’ll demonstrate.
 <Listing number="15-2" file-name="src/main.rs" caption="The first attempt at defining an enum to represent a cons list data structure of `i32` values">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-02/src/main.rs:here}}
+enum List {
+    Cons(i32, List),
+    Nil,
+}
 ```
 
 </Listing>
@@ -131,7 +137,13 @@ Listing 15-3.
 <Listing number="15-3" file-name="src/main.rs" caption="Using the `List` enum to store the list `1, 2, 3`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-03/src/main.rs:here}}
+// --snip--
+
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let list = Cons(1, Cons(2, Cons(3, Nil)));
+}
 ```
 
 </Listing>
@@ -147,7 +159,34 @@ Listing 15-4.
 <Listing number="15-4" caption="The error we get when attempting to define a recursive enum">
 
 ```console
-{{#include ../listings/ch15-smart-pointers/listing-15-03/output.txt}}
+$ cargo run
+   Compiling cons-list v0.1.0 (file:///projects/cons-list)
+error[E0072]: recursive type `List` has infinite size
+ --> src/main.rs:1:1
+|
+1 | enum List {
+| ^^^^^^^^^
+2 |     Cons(i32, List),
+| ---- recursive without indirection
+|
+help: insert some indirection (e.g., a `Box`, `Rc`, or `&`) to break the cycle
+|
+2 |     Cons(i32, Box<List>),
+| ++++    +
+
+error[E0391]: cycle detected when computing when `List` needs drop
+ --> src/main.rs:1:1
+|
+1 | enum List {
+| ^^^^^^^^^
+|
+  = note: ...which immediately requires computing when `List` needs drop again
+  = note: cycle used when computing whether `List` needs drop
+  = note: see https://rustc-dev-guide.rust-lang.org/overview.html#queries and https://rustc-dev-guide.rust-lang.org/query.html for more information
+
+Some errors have detailed explanations: E0072, E0391.
+For more information about an error, try `rustc --explain E0072`.
+error: could not compile `cons-list` (bin "cons-list") due to 2 previous errors
 ```
 
 </Listing>
@@ -164,7 +203,12 @@ Recall the `Message` enum we defined in Listing 6-2 when we discussed enum
 definitions in Chapter 6:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-02/src/main.rs:here}}
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(i32, i32, i32),
+}
 ```
 
 To determine how much space to allocate for a `Message` value, Rust goes
@@ -203,9 +247,9 @@ after doing automatic regeneration, look at listings/ch15-smart-pointers/listing
 
 ```text
 help: insert some indirection (e.g., a `Box`, `Rc`, or `&`) to break the cycle
-  |
+|
 2 |     Cons(i32, Box<List>),
-  |               ++++    +
+| ++++    +
 ```
 
 In this suggestion, _indirection_ means that instead of storing a value
@@ -227,7 +271,16 @@ of the `List` in Listing 15-3 to the code in Listing 15-5, which will compile.
 <Listing number="15-5" file-name="src/main.rs" caption="The definition of `List` that uses `Box<T>` in order to have a known size">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-05/src/main.rs}}
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
+}
 ```
 
 </Listing>

@@ -32,7 +32,11 @@ fail. In Listing 9-3, we try to open a file.
 <Listing number="9-3" file-name="src/main.rs" caption="Opening a file">
 
 ```rust
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-03/src/main.rs}}
+use std::fs::File;
+
+fn main() {
+    let greeting_file_result = File::open("hello.txt");
+}
 ```
 
 </Listing>
@@ -62,7 +66,16 @@ Chapter 6.
 <Listing number="9-4" file-name="src/main.rs" caption="Using a `match` expression to handle the `Result` variants that might be returned">
 
 ```rust,should_panic
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-04/src/main.rs}}
+use std::fs::File;
+
+fn main() {
+    let greeting_file_result = File::open("hello.txt");
+
+    let greeting_file = match greeting_file_result {
+        Ok(file) => file,
+        Err(error) => panic!("Problem opening the file: {error:?}"),
+    };
+}
 ```
 
 </Listing>
@@ -82,7 +95,14 @@ there’s no file named _hello.txt_ in our current directory and we run this
 code, we’ll see the following output from the `panic!` macro:
 
 ```console
-{{#include ../listings/ch09-error-handling/listing-09-04/output.txt}}
+$ cargo run
+   Compiling error-handling v0.1.0 (file:///projects/error-handling)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running `target/debug/error-handling`
+
+thread 'main' panicked at src/main.rs:8:23:
+Problem opening the file: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
 As usual, this output tells us exactly what has gone wrong.
@@ -103,7 +123,25 @@ add an inner `match` expression, shown in Listing 9-5.
 tests to fail lol -->
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-05/src/main.rs}}
+use std::fs::File;
+use std::io::ErrorKind;
+
+fn main() {
+    let greeting_file_result = File::open("hello.txt");
+
+    let greeting_file = match greeting_file_result {
+        Ok(file) => file,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => match File::create("hello.txt") {
+                Ok(fc) => fc,
+                Err(e) => panic!("Problem creating the file: {e:?}"),
+            },
+            _ => {
+                panic!("Problem opening the file: {error:?}");
+            }
+        },
+    };
+}
 ```
 
 </Listing>
@@ -177,7 +215,11 @@ call the `panic!` macro for us. Here is an example of `unwrap` in action:
 <Listing file-name="src/main.rs">
 
 ```rust,should_panic
-{{#rustdoc_include ../listings/ch09-error-handling/no-listing-04-unwrap/src/main.rs}}
+use std::fs::File;
+
+fn main() {
+    let greeting_file = File::open("hello.txt").unwrap();
+}
 ```
 
 </Listing>
@@ -204,7 +246,12 @@ your intent and make tracking down the source of a panic easier. The syntax of
 <Listing file-name="src/main.rs">
 
 ```rust,should_panic
-{{#rustdoc_include ../listings/ch09-error-handling/no-listing-05-expect/src/main.rs}}
+use std::fs::File;
+
+fn main() {
+    let greeting_file = File::open("hello.txt")
+        .expect("hello.txt should be included in this project");
+}
 ```
 
 </Listing>
@@ -250,7 +297,24 @@ file panics. We do want to include it for reader experimentation purposes, but
 don't want to include it for rustdoc testing purposes. -->
 
 ```rust
-{{#include ../listings/ch09-error-handling/listing-09-06/src/main.rs:here}}
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    let username_file_result = File::open("hello.txt");
+
+    let mut username_file = match username_file_result {
+        Ok(file) => file,
+        Err(e) => return Err(e),
+    };
+
+    let mut username = String::new();
+
+    match username_file.read_to_string(&mut username) {
+        Ok(_) => Ok(username),
+        Err(e) => Err(e),
+    }
+}
 ```
 
 </Listing>
@@ -323,7 +387,15 @@ file panics. We do want to include it for reader experimentation purposes, but
 don't want to include it for rustdoc testing purposes. -->
 
 ```rust
-{{#include ../listings/ch09-error-handling/listing-09-07/src/main.rs:here}}
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    let mut username_file = File::open("hello.txt")?;
+    let mut username = String::new();
+    username_file.read_to_string(&mut username)?;
+    Ok(username)
+}
 ```
 
 </Listing>
@@ -370,7 +442,16 @@ file panics. We do want to include it for reader experimentation purposes, but
 don't want to include it for rustdoc testing purposes. -->
 
 ```rust
-{{#include ../listings/ch09-error-handling/listing-09-08/src/main.rs:here}}
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    let mut username = String::new();
+
+    File::open("hello.txt")?.read_to_string(&mut username)?;
+
+    Ok(username)
+}
 ```
 
 </Listing>
@@ -393,7 +474,12 @@ file panics. We do want to include it for reader experimentation purposes, but
 don't want to include it for rustdoc testing purposes. -->
 
 ```rust
-{{#include ../listings/ch09-error-handling/listing-09-09/src/main.rs:here}}
+use std::fs;
+use std::io;
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    fs::read_to_string("hello.txt")
+}
 ```
 
 </Listing>
@@ -426,7 +512,11 @@ the value we use `?` on.
 <Listing number="9-10" file-name="src/main.rs" caption="Attempting to use the `?` in the `main` function that returns `()` won’t compile.">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-10/src/main.rs}}
+use std::fs::File;
+
+fn main() {
+    let greeting_file = File::open("hello.txt")?;
+}
 ```
 
 </Listing>
@@ -437,7 +527,25 @@ value returned by `File::open`, but this `main` function has the return type of
 message:
 
 ```console
-{{#include ../listings/ch09-error-handling/listing-09-10/output.txt}}
+$ cargo run
+   Compiling error-handling v0.1.0 (file:///projects/error-handling)
+error[E0277]: the `?` operator can only be used in a function that returns `Result` or `Option` (or another type that implements `FromResidual`)
+ --> src/main.rs:4:48
+|
+3 | fn main() {
+| --------- this function should return `Result` or `Option` to accept `?`
+4 |     let greeting_file = File::open("hello.txt")?;
+| ^ cannot use the `?` operator in a function that returns `()`
+|
+help: consider adding return type
+|
+3 ~ fn main() -> Result<(), Box<dyn std::error::Error>> {
+4 |     let greeting_file = File::open("hello.txt")?;
+5 +     Ok(())
+|
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `error-handling` (bin "error-handling") due to 1 previous error
 ```
 
 This error points out that we’re only allowed to use the `?` operator in a
@@ -463,7 +571,9 @@ given text.
 <Listing number="9-11" caption="Using the `?` operator on an `Option<T>` value">
 
 ```rust
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-11/src/main.rs:here}}
+fn last_char_of_first_line(text: &str) -> Option<char> {
+    text.lines().next()?.chars().last()
+}
 ```
 
 </Listing>
@@ -509,7 +619,14 @@ code will now compile.
 <Listing number="9-12" file-name="src/main.rs" caption="Changing `main` to return `Result<(), E>` allows the use of the `?` operator on `Result` values.">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-12/src/main.rs}}
+use std::error::Error;
+use std::fs::File;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let greeting_file = File::open("hello.txt")?;
+
+    Ok(())
+}
 ```
 
 </Listing>

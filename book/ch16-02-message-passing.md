@@ -39,7 +39,11 @@ want to send over the channel.
 <Listing number="16-6" file-name="src/main.rs" caption="Creating a channel and assigning the two halves to `tx` and `rx`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-06/src/main.rs}}
+use std::sync::mpsc;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+}
 ```
 
 </Listing>
@@ -71,7 +75,17 @@ or sending a chat message from one thread to another.
 <Listing number="16-7" file-name="src/main.rs" caption='Moving `tx` to a spawned thread and sending `"hi"`'>
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-07/src/main.rs}}
+use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let val = String::from("hi");
+        tx.send(val).unwrap();
+    });
+}
 ```
 
 </Listing>
@@ -95,7 +109,20 @@ receiving a chat message.
 <Listing number="16-8" file-name="src/main.rs" caption='Receiving the value `"hi"` in the main thread and printing it'>
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-08/src/main.rs}}
+use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let val = String::from("hi");
+        tx.send(val).unwrap();
+    });
+
+    let received = rx.recv().unwrap();
+    println!("Got: {received}");
+}
 ```
 
 </Listing>
@@ -148,7 +175,21 @@ this code isn’t allowed.
 <Listing number="16-9" file-name="src/main.rs" caption="Attempting to use `val` after we’ve sent it down the channel">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-09/src/main.rs}}
+use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let val = String::from("hi");
+        tx.send(val).unwrap();
+        println!("val is {val}");
+    });
+
+    let received = rx.recv().unwrap();
+    println!("Got: {received}");
+}
 ```
 
 </Listing>
@@ -161,7 +202,22 @@ unexpected results due to inconsistent or nonexistent data. However, Rust gives
 us an error if we try to compile the code in Listing 16-9:
 
 ```console
-{{#include ../listings/ch16-fearless-concurrency/listing-16-09/output.txt}}
+$ cargo run
+   Compiling message-passing v0.1.0 (file:///projects/message-passing)
+error[E0382]: borrow of moved value: `val`
+  --> src/main.rs:10:27
+|
+ 8 |         let val = String::from("hi");
+| --- move occurs because `val` has type `String`, which does not implement the `Copy` trait
+ 9 |         tx.send(val).unwrap();
+| --- value moved here
+10 |         println!("val is {val}");
+| ^^^ value borrowed here after move
+|
+   = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `message-passing` (bin "message-passing") due to 1 previous error
 ```
 
 Our concurrency mistake has caused a compile-time error. The `send` function
@@ -185,7 +241,31 @@ messages and pause for a second between each message.
 <Listing number="16-10" file-name="src/main.rs" caption="Sending multiple messages and pausing between each one">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-10/src/main.rs}}
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let vals = vec![
+            String::from("hi"),
+            String::from("from"),
+            String::from("the"),
+            String::from("thread"),
+        ];
+
+        for val in vals {
+            tx.send(val).unwrap();
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    for received in rx {
+        println!("Got: {received}");
+    }
+}
 ```
 
 </Listing>
@@ -231,7 +311,44 @@ by cloning the transmitter, as shown in Listing 16-11.
 <Listing number="16-11" file-name="src/main.rs" caption="Sending multiple messages from multiple producers">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-11/src/main.rs:here}}
+    // --snip--
+
+    let (tx, rx) = mpsc::channel();
+
+    let tx1 = tx.clone();
+    thread::spawn(move || {
+        let vals = vec![
+            String::from("hi"),
+            String::from("from"),
+            String::from("the"),
+            String::from("thread"),
+        ];
+
+        for val in vals {
+            tx1.send(val).unwrap();
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    thread::spawn(move || {
+        let vals = vec![
+            String::from("more"),
+            String::from("messages"),
+            String::from("for"),
+            String::from("you"),
+        ];
+
+        for val in vals {
+            tx.send(val).unwrap();
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+
+    for received in rx {
+        println!("Got: {received}");
+    }
+
+    // --snip--
 ```
 
 </Listing>

@@ -52,7 +52,11 @@ the reason you think you’ll never have an `Err` variant in the argument text.
 Here’s an example:
 
 ```rust
-{{#rustdoc_include ../listings/ch09-error-handling/no-listing-08-unwrap-that-cant-fail/src/main.rs:here}}
+    use std::net::IpAddr;
+
+    let home: IpAddr = "127.0.0.1"
+        .parse()
+        .expect("Hardcoded IP address should be valid");
 ```
 
 We’re creating an `IpAddr` instance by parsing a hardcoded string. We can see
@@ -152,7 +156,22 @@ number being in range, like so:
 <Listing file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch09-error-handling/no-listing-09-guess-out-of-range/src/main.rs:here}}
+    loop {
+        // --snip--
+
+        let guess: i32 = match guess.trim().parse() {
+            Ok(num) => num,
+            Err(_) => continue,
+        };
+
+        if guess < 1 || guess > 100 {
+            println!("The secret number will be between 1 and 100.");
+            continue;
+        }
+
+        match guess.cmp(&secret_number) {
+            // --snip--
+    }
 ```
 
 </Listing>
@@ -178,7 +197,23 @@ shows one way to define a `Guess` type that will only create an instance of
 <Listing number="9-13" caption="A `Guess` type that will only continue with values between 1 and 100" file-name="src/guessing_game.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-13/src/guessing_game.rs}}
+pub struct Guess {
+    value: i32,
+}
+
+impl Guess {
+    pub fn new(value: i32) -> Guess {
+        if value < 1 || value > 100 {
+            panic!("Guess value must be between 1 and 100, got {value}.");
+        }
+
+        Guess { value }
+    }
+
+    pub fn value(&self) -> i32 {
+        self.value
+    }
+}
 ```
 
 </Listing>

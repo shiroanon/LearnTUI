@@ -48,12 +48,12 @@ $ cargo build
    Compiling myprogram v0.1.0 (file:///projects/myprogram)
 warning: variable does not need to be mutable
  --> src/main.rs:2:9
-  |
+|
 2 |     let mut x = 0;
-  |         ----^
-  |         |
-  |         help: remove this `mut`
-  |
+| ----^
+|  |
+| help: remove this `mut`
+|
   = note: `#[warn(unused_mut)]` on by default
 ```
 
@@ -118,10 +118,10 @@ Running `cargo clippy` on this project results in this error:
 ```text
 error: approximate value of `f{32, 64}::consts::PI` found
  --> src/main.rs:2:13
-  |
+|
 2 |     let x = 3.1415;
-  |             ^^^^^^
-  |
+| ^^^^^^
+|
   = note: `#[deny(clippy::approx_constant)]` on by default
   = help: consider using the constant directly
   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#approx_constant

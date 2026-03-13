@@ -34,7 +34,13 @@ reference to the value.
 <Listing number="15-6" file-name="src/main.rs" caption="Using the dereference operator to follow a reference to an `i32` value">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-06/src/main.rs}}
+fn main() {
+    let x = 5;
+    let y = &x;
+
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
 ```
 
 </Listing>
@@ -50,7 +56,19 @@ If we tried to write `assert_eq!(5, y);` instead, we would get this compilation
 error:
 
 ```console
-{{#include ../listings/ch15-smart-pointers/output-only-01-comparing-to-reference/output.txt}}
+$ cargo run
+   Compiling deref-example v0.1.0 (file:///projects/deref-example)
+error[E0277]: can't compare `{integer}` with `&{integer}`
+ --> src/main.rs:6:5
+|
+6 |     assert_eq!(5, y);
+| ^^^^^^^^^^^^^^^^ no implementation for `{integer} == &{integer}`
+|
+  = help: the trait `PartialEq<&{integer}>` is not implemented for `{integer}`
+  = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `deref-example` (bin "deref-example") due to 1 previous error
 ```
 
 Comparing a number and a reference to a number isn’t allowed because they’re
@@ -67,7 +85,13 @@ Listing 15-6.
 <Listing number="15-7" file-name="src/main.rs" caption="Using the dereference operator on a `Box<i32>`">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-07/src/main.rs}}
+fn main() {
+    let x = 5;
+    let y = Box::new(x);
+
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
 ```
 
 </Listing>
@@ -98,7 +122,13 @@ Listing 15-8 defines a `MyBox<T>` type in the same way. We’ll also define a
 <Listing number="15-8" file-name="src/main.rs" caption="Defining a `MyBox<T>` type">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-08/src/main.rs:here}}
+struct MyBox<T>(T);
+
+impl<T> MyBox<T> {
+    fn new(x: T) -> MyBox<T> {
+        MyBox(x)
+    }
+}
 ```
 
 </Listing>
@@ -116,7 +146,13 @@ dereference `MyBox`.
 <Listing number="15-9" file-name="src/main.rs" caption="Attempting to use `MyBox<T>` in the same way we used references and `Box<T>`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-09/src/main.rs:here}}
+fn main() {
+    let x = 5;
+    let y = MyBox::new(x);
+
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
 ```
 
 </Listing>
@@ -124,7 +160,16 @@ dereference `MyBox`.
 Here’s the resultant compilation error:
 
 ```console
-{{#include ../listings/ch15-smart-pointers/listing-15-09/output.txt}}
+$ cargo run
+   Compiling deref-example v0.1.0 (file:///projects/deref-example)
+error[E0614]: type `MyBox<{integer}>` cannot be dereferenced
+  --> src/main.rs:14:19
+|
+14 |     assert_eq!(5, *y);
+| ^^ can't be dereferenced
+
+For more information about this error, try `rustc --explain E0614`.
+error: could not compile `deref-example` (bin "deref-example") due to 1 previous error
 ```
 
 Our `MyBox<T>` type can’t be dereferenced because we haven’t implemented that
@@ -147,7 +192,15 @@ of `Deref` to add to the definition of `MyBox<T>`.
 <Listing number="15-10" file-name="src/main.rs" caption="Implementing `Deref` on `MyBox<T>`">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-10/src/main.rs:here}}
+use std::ops::Deref;
+
+impl<T> Deref for MyBox<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 ```
 
 </Listing>
@@ -225,7 +278,9 @@ parameter.
 <Listing number="15-11" file-name="src/main.rs" caption="A `hello` function that has the parameter `name` of type `&str`">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-11/src/main.rs:here}}
+fn hello(name: &str) {
+    println!("Hello, {name}!");
+}
 ```
 
 </Listing>
@@ -237,7 +292,10 @@ with a reference to a value of type `MyBox<String>`, as shown in Listing 15-12.
 <Listing number="15-12" file-name="src/main.rs" caption="Calling `hello` with a reference to a `MyBox<String>` value, which works because of deref coercion">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-12/src/main.rs:here}}
+fn main() {
+    let m = MyBox::new(String::from("Rust"));
+    hello(&m);
+}
 ```
 
 </Listing>
@@ -257,7 +315,10 @@ of type `&MyBox<String>`.
 <Listing number="15-13" file-name="src/main.rs" caption="The code we would have to write if Rust didn’t have deref coercion">
 
 ```rust
-{{#rustdoc_include ../listings/ch15-smart-pointers/listing-15-13/src/main.rs:here}}
+fn main() {
+    let m = MyBox::new(String::from("Rust"));
+    hello(&(*m)[..]);
+}
 ```
 
 </Listing>

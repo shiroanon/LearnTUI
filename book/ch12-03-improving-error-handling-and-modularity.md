@@ -76,7 +76,20 @@ calls a new function `parse_config`, which we’ll define in _src/main.rs_.
 <Listing number="12-5" file-name="src/main.rs" caption="Extracting a `parse_config` function from `main`">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-05/src/main.rs:here}}
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let (query, file_path) = parse_config(&args);
+
+    // --snip--
+}
+
+fn parse_config(args: &[String]) -> (&str, &str) {
+    let query = &args[1];
+    let file_path = &args[2];
+
+    (query, file_path)
+}
 ```
 
 </Listing>
@@ -117,7 +130,31 @@ Listing 12-6 shows the improvements to the `parse_config` function.
 <Listing number="12-6" file-name="src/main.rs" caption="Refactoring `parse_config` to return an instance of a `Config` struct">
 
 ```rust,should_panic,noplayground
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-06/src/main.rs:here}}
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = parse_config(&args);
+
+    println!("Searching for {}", config.query);
+    println!("In file {}", config.file_path);
+
+    let contents = fs::read_to_string(config.file_path)
+        .expect("Should have been able to read the file");
+
+    // --snip--
+}
+
+struct Config {
+    query: String,
+    file_path: String,
+}
+
+fn parse_config(args: &[String]) -> Config {
+    let query = args[1].clone();
+    let file_path = args[2].clone();
+
+    Config { query, file_path }
+}
 ```
 
 </Listing>
@@ -183,7 +220,24 @@ shows the changes we need to make.
 <Listing number="12-7" file-name="src/main.rs" caption="Changing `parse_config` into `Config::new`">
 
 ```rust,should_panic,noplayground
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-07/src/main.rs:here}}
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = Config::new(&args);
+
+    // --snip--
+}
+
+// --snip--
+
+impl Config {
+    fn new(args: &[String]) -> Config {
+        let query = args[1].clone();
+        let file_path = args[2].clone();
+
+        Config { query, file_path }
+    }
+}
 ```
 
 </Listing>
@@ -201,7 +255,14 @@ panic if the vector contains fewer than three items. Try running the program
 without any arguments; it will look like this:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-07/output.txt}}
+$ cargo run
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/minigrep`
+
+thread 'main' panicked at src/main.rs:27:21:
+index out of bounds: the len is 1 but the index is 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
 The line `index out of bounds: the len is 1 but the index is 1` is an error
@@ -217,7 +278,12 @@ long enough, the program panics and displays a better error message.
 <Listing number="12-8" file-name="src/main.rs" caption="Adding a check for the number of arguments">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-08/src/main.rs:here}}
+    // --snip--
+    fn new(args: &[String]) -> Config {
+        if args.len() < 3 {
+            panic!("not enough arguments");
+        }
+        // --snip--
 ```
 
 </Listing>
@@ -234,7 +300,14 @@ With these extra few lines of code in `new`, let’s run the program without any
 arguments again to see what the error looks like now:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-08/output.txt}}
+$ cargo run
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/minigrep`
+
+thread 'main' panicked at src/main.rs:26:13:
+not enough arguments
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
 This output is better: We now have a reasonable error message. However, we also
@@ -268,7 +341,18 @@ well, which we’ll do in the next listing.
 <Listing number="12-9" file-name="src/main.rs" caption="Returning a `Result` from `Config::build`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-09/src/main.rs:here}}
+impl Config {
+    fn build(args: &[String]) -> Result<Config, &'static str> {
+        if args.len() < 3 {
+            return Err("not enough arguments");
+        }
+
+        let query = args[1].clone();
+        let file_path = args[2].clone();
+
+        Ok(Config { query, file_path })
+    }
+}
 ```
 
 </Listing>
@@ -302,7 +386,17 @@ called our program that the program exited with an error state.
 <Listing number="12-10" file-name="src/main.rs" caption="Exiting with an error code if building a `Config` fails">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-10/src/main.rs:here}}
+use std::process;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = Config::build(&args).unwrap_or_else(|err| {
+        println!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
+
+    // --snip--
 ```
 
 </Listing>
@@ -330,7 +424,11 @@ number that was passed as the exit status code. This is similar to the
 extra output. Let’s try it:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-10/output.txt}}
+$ cargo run
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.48s
+     Running `target/debug/minigrep`
+Problem parsing arguments: not enough arguments
 ```
 
 Great! This output is much friendlier for our users.
@@ -355,7 +453,23 @@ function.
 <Listing number="12-11" file-name="src/main.rs" caption="Extracting a `run` function containing the rest of the program logic">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-11/src/main.rs:here}}
+fn main() {
+    // --snip--
+
+    println!("Searching for {}", config.query);
+    println!("In file {}", config.file_path);
+
+    run(config);
+}
+
+fn run(config: Config) {
+    let contents = fs::read_to_string(config.file_path)
+        .expect("Should have been able to read the file");
+
+    println!("With text:\n{contents}");
+}
+
+// --snip--
 ```
 
 </Listing>
@@ -381,7 +495,17 @@ signature and body of `run`.
 <Listing number="12-12" file-name="src/main.rs" caption="Changing the `run` function to return `Result`">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-12/src/main.rs:here}}
+use std::error::Error;
+
+// --snip--
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(config.file_path)?;
+
+    println!("With text:\n{contents}");
+
+    Ok(())
+}
 ```
 
 </Listing>
@@ -415,7 +539,36 @@ only; it doesn’t return a value we need.
 When you run this code, it will compile but will display a warning:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-12/output.txt}}
+$ cargo run -- the poem.txt
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+warning: unused `Result` that must be used
+  --> src/main.rs:19:5
+|
+19 |     run(config);
+| ^^^^^^^^^^^
+|
+   = note: this `Result` may be an `Err` variant, which should be handled
+   = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+|
+19 |     let _ = run(config);
+| +++++++
+
+warning: `minigrep` (bin "minigrep") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running `target/debug/minigrep the poem.txt`
+Searching for the
+In file poem.txt
+With text:
+I'm nobody! Who are you?
+Are you nobody, too?
+Then there's a pair of us - don't tell!
+They'd banish us, you know.
+
+How dreary to be somebody!
+How public, like a frog
+To tell your name the livelong day
+To an admiring bog!
 ```
 
 Rust tells us that our code ignored the `Result` value and the `Result` value
@@ -431,7 +584,17 @@ with `Config::build` in Listing 12-10, but with a slight difference:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/no-listing-01-handling-errors-in-main/src/main.rs:here}}
+fn main() {
+    // --snip--
+
+    println!("Searching for {}", config.query);
+    println!("In file {}", config.file_path);
+
+    if let Err(e) = run(config) {
+        println!("Application error: {e}");
+        process::exit(1);
+    }
+}
 ```
 
 We use `if let` rather than `unwrap_or_else` to check whether `run` returns an
@@ -462,7 +625,9 @@ the signature in more detail when we fill in the implementation.
 <Listing number="12-13" file-name="src/lib.rs" caption="Defining the `search` function in *src/lib.rs*">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-13/src/lib.rs}}
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    unimplemented!();
+}
 ```
 
 </Listing>
@@ -477,7 +642,24 @@ binary crate in _src/main.rs_ and call it, as shown in Listing 12-14.
 <Listing number="12-14" file-name="src/main.rs" caption="Using the `minigrep` library crate’s `search` function in *src/main.rs*">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-14/src/main.rs:here}}
+// --snip--
+use minigrep::search;
+
+fn main() {
+    // --snip--
+}
+
+// --snip--
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(config.file_path)?;
+
+    for line in search(&config.query, &contents) {
+        println!("{line}");
+    }
+
+    Ok(())
+}
 ```
 
 </Listing>

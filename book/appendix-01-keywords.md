@@ -102,9 +102,9 @@ you’ll get this error:
 ```text
 error: expected identifier, found keyword `match`
  --> src/main.rs:4:4
-  |
+|
 4 | fn match(needle: &str, haystack: &str) -> bool {
-  |    ^^^^^ expected identifier, found keyword
+| ^^^^^ expected identifier, found keyword
 ```
 
 The error shows that you can’t use the keyword `match` as the function

@@ -31,7 +31,19 @@ Keyword”][pub]<!-- ignore --> section, we’ll go into more detail about `pub`
 <Listing number="7-3" file-name="src/lib.rs" caption="Calling the `add_to_waitlist` function using absolute and relative paths">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-03/src/lib.rs}}
+mod front_of_house {
+    mod hosting {
+        fn add_to_waitlist() {}
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Absolute path
+    crate::front_of_house::hosting::add_to_waitlist();
+
+    // Relative path
+    front_of_house::hosting::add_to_waitlist();
+}
 ```
 
 </Listing>
@@ -71,7 +83,38 @@ errors we get are shown in Listing 7-4.
 <Listing number="7-4" caption="Compiler errors from building the code in Listing 7-3">
 
 ```console
-{{#include ../listings/ch07-managing-growing-projects/listing-07-03/output.txt}}
+$ cargo build
+   Compiling restaurant v0.1.0 (file:///projects/restaurant)
+error[E0603]: module `hosting` is private
+ --> src/lib.rs:9:28
+|
+9 |     crate::front_of_house::hosting::add_to_waitlist();
+| ^^^^^^^  --------------- function `add_to_waitlist` is not publicly re-exported
+|  |
+| private module
+|
+note: the module `hosting` is defined here
+ --> src/lib.rs:2:5
+|
+2 |     mod hosting {
+| ^^^^^^^^^^^
+
+error[E0603]: module `hosting` is private
+  --> src/lib.rs:12:21
+|
+12 |     front_of_house::hosting::add_to_waitlist();
+| ^^^^^^^  --------------- function `add_to_waitlist` is not publicly re-exported
+|  |
+| private module
+|
+note: the module `hosting` is defined here
+  --> src/lib.rs:2:5
+|
+ 2 |     mod hosting {
+| ^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0603`.
+error: could not compile `restaurant` (lib) due to 2 previous errors
 ```
 
 </Listing>
@@ -107,7 +150,13 @@ access to the `add_to_waitlist` function in the child module, so we mark the
 <Listing number="7-5" file-name="src/lib.rs" caption="Declaring the `hosting` module as `pub` to use it from `eat_at_restaurant`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-05/src/lib.rs:here}}
+mod front_of_house {
+    pub mod hosting {
+        fn add_to_waitlist() {}
+    }
+}
+
+// -- snip --
 ```
 
 </Listing>
@@ -118,7 +167,34 @@ shown in Listing 7-6.
 <Listing number="7-6" caption="Compiler errors from building the code in Listing 7-5">
 
 ```console
-{{#include ../listings/ch07-managing-growing-projects/listing-07-05/output.txt}}
+$ cargo build
+   Compiling restaurant v0.1.0 (file:///projects/restaurant)
+error[E0603]: function `add_to_waitlist` is private
+  --> src/lib.rs:10:37
+|
+10 |     crate::front_of_house::hosting::add_to_waitlist();
+| ^^^^^^^^^^^^^^^ private function
+|
+note: the function `add_to_waitlist` is defined here
+  --> src/lib.rs:3:9
+|
+ 3 |         fn add_to_waitlist() {}
+| ^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: function `add_to_waitlist` is private
+  --> src/lib.rs:13:30
+|
+13 |     front_of_house::hosting::add_to_waitlist();
+| ^^^^^^^^^^^^^^^ private function
+|
+note: the function `add_to_waitlist` is defined here
+  --> src/lib.rs:3:9
+|
+ 3 |         fn add_to_waitlist() {}
+| ^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0603`.
+error: could not compile `restaurant` (lib) due to 2 previous errors
 ```
 
 </Listing>
@@ -142,7 +218,13 @@ keyword before its definition, as in Listing 7-7.
 <Listing number="7-7" file-name="src/lib.rs" caption="Adding the `pub` keyword to `mod hosting` and `fn add_to_waitlist` lets us call the function from `eat_at_restaurant`.">
 
 ```rust,noplayground,test_harness
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-07/src/lib.rs:here}}
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+// -- snip --
 ```
 
 </Listing>
@@ -216,7 +298,16 @@ function `deliver_order` defined in the parent module by specifying the path to
 <Listing number="7-8" file-name="src/lib.rs" caption="Calling a function using a relative path starting with `super`">
 
 ```rust,noplayground,test_harness
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-08/src/lib.rs}}
+fn deliver_order() {}
+
+mod back_of_house {
+    fn fix_incorrect_order() {
+        cook_order();
+        super::deliver_order();
+    }
+
+    fn cook_order() {}
+}
 ```
 
 </Listing>
@@ -246,7 +337,33 @@ customers can’t choose the fruit or even see which fruit they’ll get.
 <Listing number="7-9" file-name="src/lib.rs" caption="A struct with some public fields and some private fields">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-09/src/lib.rs}}
+mod back_of_house {
+    pub struct Breakfast {
+        pub toast: String,
+        seasonal_fruit: String,
+    }
+
+    impl Breakfast {
+        pub fn summer(toast: &str) -> Breakfast {
+            Breakfast {
+                toast: String::from(toast),
+                seasonal_fruit: String::from("peaches"),
+            }
+        }
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Order a breakfast in the summer with Rye toast.
+    let mut meal = back_of_house::Breakfast::summer("Rye");
+    // Change our mind about what bread we'd like.
+    meal.toast = String::from("Wheat");
+    println!("I'd like {} toast please", meal.toast);
+
+    // The next line won't compile if we uncomment it; we're not allowed
+    // to see or modify the seasonal fruit that comes with the meal.
+    // meal.seasonal_fruit = String::from("blueberries");
+}
 ```
 
 </Listing>
@@ -270,7 +387,17 @@ only need the `pub` before the `enum` keyword, as shown in Listing 7-10.
 <Listing number="7-10" file-name="src/lib.rs" caption="Designating an enum as public makes all its variants public.">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-10/src/lib.rs}}
+mod back_of_house {
+    pub enum Appetizer {
+        Soup,
+        Salad,
+    }
+}
+
+pub fn eat_at_restaurant() {
+    let order1 = back_of_house::Appetizer::Soup;
+    let order2 = back_of_house::Appetizer::Salad;
+}
 ```
 
 </Listing>

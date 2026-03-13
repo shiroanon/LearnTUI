@@ -9,7 +9,14 @@ As you saw in Chapter 6, you can match patterns against literals directly. The
 following code gives some examples:
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/no-listing-01-literals/src/main.rs:here}}
+    let x = 1;
+
+    match x {
+        1 => println!("one"),
+        2 => println!("two"),
+        3 => println!("three"),
+        _ => println!("anything"),
+    }
 ```
 
 This code prints `one` because the value in `x` is `1`. This syntax is useful
@@ -32,7 +39,16 @@ what the code will print before running this code or reading further.
 <Listing number="19-11" file-name="src/main.rs" caption="A `match` expression with an arm that introduces a new variable which shadows an existing variable `y`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-11/src/main.rs:here}}
+    let x = Some(5);
+    let y = 10;
+
+    match x {
+        Some(50) => println!("Got 50"),
+        Some(y) => println!("Matched, y = {y}"),
+        _ => println!("Default case, x = {x:?}"),
+    }
+
+    println!("at the end: x = {x:?}, y = {y}");
 ```
 
 </Listing>
@@ -78,7 +94,13 @@ arm’s code will run:
 
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/no-listing-02-multiple-patterns/src/main.rs:here}}
+    let x = 1;
+
+    match x {
+        1 | 2 => println!("one or two"),
+        3 => println!("three"),
+        _ => println!("anything"),
+    }
 ```
 
 This code prints `one or two`.
@@ -90,7 +112,12 @@ following code, when a pattern matches any of the values within the given
 range, that arm will execute:
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/no-listing-03-ranges/src/main.rs:here}}
+    let x = 5;
+
+    match x {
+        1..=5 => println!("one through five"),
+        _ => println!("something else"),
+    }
 ```
 
 If `x` is `1`, `2`, `3`, `4`, or `5`, the first arm will match. This syntax is
@@ -106,7 +133,13 @@ numeric values, ranges are only allowed with numeric or `char` values.
 Here is an example using ranges of `char` values:
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/no-listing-04-ranges-of-char/src/main.rs:here}}
+    let x = 'c';
+
+    match x {
+        'a'..='j' => println!("early ASCII letter"),
+        'k'..='z' => println!("late ASCII letter"),
+        _ => println!("something else"),
+    }
 ```
 
 Rust can tell that `'c'` is within the first pattern’s range and prints `early
@@ -129,7 +162,18 @@ break apart using a pattern with a `let` statement.
 <Listing number="19-12" file-name="src/main.rs" caption="Destructuring a struct’s fields into separate variables">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-12/src/main.rs}}
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let p = Point { x: 0, y: 7 };
+
+    let Point { x: a, y: b } = p;
+    assert_eq!(0, a);
+    assert_eq!(7, b);
+}
 ```
 
 </Listing>
@@ -149,7 +193,18 @@ pattern are `x` and `y` instead of `a` and `b`.
 <Listing number="19-13" file-name="src/main.rs" caption="Destructuring struct fields using struct field shorthand">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-13/src/main.rs}}
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let p = Point { x: 0, y: 7 };
+
+    let Point { x, y } = p;
+    assert_eq!(0, x);
+    assert_eq!(7, y);
+}
 ```
 
 </Listing>
@@ -170,7 +225,17 @@ into three cases: points that lie directly on the `x` axis (which is true when
 <Listing number="19-14" file-name="src/main.rs" caption="Destructuring and matching literal values in one pattern">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-14/src/main.rs:here}}
+fn main() {
+    let p = Point { x: 0, y: 7 };
+
+    match p {
+        Point { x, y: 0 } => println!("On the x axis at {x}"),
+        Point { x: 0, y } => println!("On the y axis at {y}"),
+        Point { x, y } => {
+            println!("On neither axis: ({x}, {y})");
+        }
+    }
+}
 ```
 
 </Listing>
@@ -206,7 +271,31 @@ a `match` with patterns that will destructure each inner value.
 <Listing number="19-15" file-name="src/main.rs" caption="Destructuring enum variants that hold different kinds of values">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-15/src/main.rs}}
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(i32, i32, i32),
+}
+
+fn main() {
+    let msg = Message::ChangeColor(0, 160, 255);
+
+    match msg {
+        Message::Quit => {
+            println!("The Quit variant has no data to destructure.");
+        }
+        Message::Move { x, y } => {
+            println!("Move in the x direction {x} and in the y direction {y}");
+        }
+        Message::Write(text) => {
+            println!("Text message: {text}");
+        }
+        Message::ChangeColor(r, g, b) => {
+            println!("Change color to red {r}, green {g}, and blue {b}");
+        }
+    }
+}
 ```
 
 </Listing>
@@ -244,7 +333,31 @@ message, as shown in Listing 19-16.
 <Listing number="19-16" caption="Matching on nested enums">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-16/src/main.rs}}
+enum Color {
+    Rgb(i32, i32, i32),
+    Hsv(i32, i32, i32),
+}
+
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(Color),
+}
+
+fn main() {
+    let msg = Message::ChangeColor(Color::Hsv(0, 160, 255));
+
+    match msg {
+        Message::ChangeColor(Color::Rgb(r, g, b)) => {
+            println!("Change color to red {r}, green {g}, and blue {b}");
+        }
+        Message::ChangeColor(Color::Hsv(h, s, v)) => {
+            println!("Change color to hue {h}, saturation {s}, value {v}");
+        }
+        _ => (),
+    }
+}
 ```
 
 </Listing>
@@ -267,7 +380,7 @@ The following example shows a complicated destructure where we nest structs and
 tuples inside a tuple and destructure all the primitive values out:
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/no-listing-05-destructuring-structs-and-tuples/src/main.rs:here}}
+    let ((feet, inches), Point { x, y }) = ((3, 10), Point { x: 3, y: -10 });
 ```
 
 This code lets us break complex types into their component parts so that we can
@@ -300,7 +413,13 @@ parameters, as shown in Listing 19-17.
 <Listing number="19-17" file-name="src/main.rs" caption="Using `_` in a function signature">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-17/src/main.rs}}
+fn foo(_: i32, y: i32) {
+    println!("This code only uses the y parameter: {y}");
+}
+
+fn main() {
+    foo(3, 4);
+}
 ```
 
 </Listing>
@@ -332,7 +451,19 @@ setting but can unset the setting and give it a value if it is currently unset.
 <Listing number="19-18" caption="Using an underscore within patterns that match `Some` variants when we don’t need to use the value inside the `Some`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-18/src/main.rs:here}}
+    let mut setting_value = Some(5);
+    let new_setting_value = Some(10);
+
+    match (setting_value, new_setting_value) {
+        (Some(_), Some(_)) => {
+            println!("Can't overwrite an existing customized value");
+        }
+        _ => {
+            setting_value = new_setting_value;
+        }
+    }
+
+    println!("setting is {setting_value:?}");
 ```
 
 </Listing>
@@ -355,7 +486,13 @@ fourth values in a tuple of five items.
 <Listing number="19-19" caption="Ignoring multiple parts of a tuple">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-19/src/main.rs:here}}
+    let numbers = (2, 4, 8, 16, 32);
+
+    match numbers {
+        (first, _, third, _, fifth) => {
+            println!("Some numbers: {first}, {third}, {fifth}");
+        }
+    }
 ```
 
 </Listing>
@@ -380,7 +517,10 @@ we compile this code, we should only get a warning about one of them.
 <Listing number="19-20" file-name="src/main.rs" caption="Starting a variable name with an underscore to avoid getting unused variable warnings">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-20/src/main.rs}}
+fn main() {
+    let _x = 5;
+    let y = 10;
+}
 ```
 
 </Listing>
@@ -396,7 +536,13 @@ distinction matters, Listing 19-21 will provide us with an error.
 <Listing number="19-21" caption="An unused variable starting with an underscore still binds the value, which might take ownership of the value.">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-21/src/main.rs:here}}
+    let s = Some(String::from("Hello!"));
+
+    if let Some(_s) = s {
+        println!("found a string");
+    }
+
+    println!("{s:?}");
 ```
 
 </Listing>
@@ -409,7 +555,13 @@ because `s` doesn’t get moved into `_`.
 <Listing number="19-22" caption="Using an underscore does not bind the value.">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-22/src/main.rs:here}}
+    let s = Some(String::from("Hello!"));
+
+    if let Some(_) = s {
+        println!("found a string");
+    }
+
+    println!("{s:?}");
 ```
 
 </Listing>
@@ -431,7 +583,17 @@ the values in the `y` and `z` fields.
 <Listing number="19-23" caption="Ignoring all fields of a `Point` except for `x` by using `..`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-23/src/main.rs:here}}
+    struct Point {
+        x: i32,
+        y: i32,
+        z: i32,
+    }
+
+    let origin = Point { x: 0, y: 0, z: 0 };
+
+    match origin {
+        Point { x, .. } => println!("x is {x}"),
+    }
 ```
 
 </Listing>
@@ -447,7 +609,15 @@ shows how to use `..` with a tuple.
 <Listing number="19-24" file-name="src/main.rs" caption="Matching only the first and last values in a tuple and ignoring all other values">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-24/src/main.rs}}
+fn main() {
+    let numbers = (2, 4, 8, 16, 32);
+
+    match numbers {
+        (first, .., last) => {
+            println!("Some numbers: {first}, {last}");
+        }
+    }
+}
 ```
 
 </Listing>
@@ -463,7 +633,15 @@ compile.
 <Listing number="19-25" file-name="src/main.rs" caption="An attempt to use `..` in an ambiguous way">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-25/src/main.rs}}
+fn main() {
+    let numbers = (2, 4, 8, 16, 32);
+
+    match numbers {
+        (.., second, ..) => {
+            println!("Some numbers: {second}")
+        },
+    }
+}
 ```
 
 </Listing>
@@ -471,7 +649,17 @@ compile.
 When we compile this example, we get this error:
 
 ```console
-{{#include ../listings/ch19-patterns-and-matching/listing-19-25/output.txt}}
+$ cargo run
+   Compiling patterns v0.1.0 (file:///projects/patterns)
+error: `..` can only be used once per tuple pattern
+ --> src/main.rs:5:22
+|
+5 |         (.., second, ..) => {
+| --          ^^ can only be used once per tuple pattern
+|  |
+| previously used here
+
+error: could not compile `patterns` (bin "patterns") due to 1 previous error
 ```
 
 It’s impossible for Rust to determine how many values in the tuple to ignore
@@ -501,7 +689,13 @@ guard of `if x % 2 == 0` (which will be `true` if the number is even).
 <Listing number="19-26" caption="Adding a match guard to a pattern">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-26/src/main.rs:here}}
+    let num = Some(4);
+
+    match num {
+        Some(x) if x % 2 == 0 => println!("The number {x} is even"),
+        Some(x) => println!("The number {x} is odd"),
+        None => (),
+    }
 ```
 
 </Listing>
@@ -531,7 +725,18 @@ this problem.
 <Listing number="19-27" file-name="src/main.rs" caption="Using a match guard to test for equality with an outer variable">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-27/src/main.rs}}
+fn main() {
+    let x = Some(5);
+    let y = 10;
+
+    match x {
+        Some(50) => println!("Got 50"),
+        Some(n) if n == y => println!("Matched, n = {n}"),
+        _ => println!("Default case, x = {x:?}"),
+    }
+
+    println!("at the end: x = {x:?}, y = {y}");
+}
 ```
 
 </Listing>
@@ -558,7 +763,13 @@ applies to `6`.
 <Listing number="19-28" caption="Combining multiple patterns with a match guard">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-28/src/main.rs:here}}
+    let x = 4;
+    let y = false;
+
+    match x {
+        4 | 5 | 6 if y => println!("yes"),
+        _ => println!("no"),
+    }
 ```
 
 </Listing>
@@ -602,7 +813,21 @@ associated with the arm.
 <Listing number="19-29" caption="Using `@` to bind to a value in a pattern while also testing it">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-29/src/main.rs:here}}
+    enum Message {
+        Hello { id: i32 },
+    }
+
+    let msg = Message::Hello { id: 5 };
+
+    match msg {
+        Message::Hello { id: id @ 3..=7 } => {
+            println!("Found an id in range: {id}")
+        }
+        Message::Hello { id: 10..=12 } => {
+            println!("Found an id in another range")
+        }
+        Message::Hello { id } => println!("Found some other id: {id}"),
+    }
 ```
 
 </Listing>

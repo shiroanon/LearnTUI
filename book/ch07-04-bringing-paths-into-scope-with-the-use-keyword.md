@@ -15,7 +15,17 @@ scope of the `eat_at_restaurant` function so that we only have to specify
 <Listing number="7-11" file-name="src/lib.rs" caption="Bringing a module into scope with `use`">
 
 ```rust,noplayground,test_harness
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-11/src/lib.rs}}
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+use crate::front_of_house::hosting;
+
+pub fn eat_at_restaurant() {
+    hosting::add_to_waitlist();
+}
 ```
 
 </Listing>
@@ -34,7 +44,19 @@ statement, so the function body won’t compile.
 <Listing number="7-12" file-name="src/lib.rs" caption="A `use` statement only applies in the scope it’s in.">
 
 ```rust,noplayground,test_harness,does_not_compile,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-12/src/lib.rs}}
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+use crate::front_of_house::hosting;
+
+mod customer {
+    pub fn eat_at_restaurant() {
+        hosting::add_to_waitlist();
+    }
+}
 ```
 
 </Listing>
@@ -43,7 +65,31 @@ The compiler error shows that the shortcut no longer applies within the
 `customer` module:
 
 ```console
-{{#include ../listings/ch07-managing-growing-projects/listing-07-12/output.txt}}
+$ cargo build
+   Compiling restaurant v0.1.0 (file:///projects/restaurant)
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `hosting`
+  --> src/lib.rs:11:9
+|
+11 |         hosting::add_to_waitlist();
+| ^^^^^^^ use of unresolved module or unlinked crate `hosting`
+|
+   = help: if you wanted to use a crate named `hosting`, use `cargo add hosting` to add it to your `Cargo.toml`
+help: consider importing this module through its public re-export
+|
+10 +     use crate::hosting;
+|
+
+warning: unused import: `crate::front_of_house::hosting`
+ --> src/lib.rs:7:5
+|
+7 | use crate::front_of_house::hosting;
+| ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|
+  = note: `#[warn(unused_imports)]` on by default
+
+For more information about this error, try `rustc --explain E0433`.
+warning: `restaurant` (lib) generated 1 warning
+error: could not compile `restaurant` (lib) due to 1 previous error; 1 warning emitted
 ```
 
 Notice there’s also a warning that the `use` is no longer used in its scope! To
@@ -61,7 +107,17 @@ the `add_to_waitlist` function to achieve the same result, as in Listing 7-13.
 <Listing number="7-13" file-name="src/lib.rs" caption="Bringing the `add_to_waitlist` function into scope with `use`, which is unidiomatic">
 
 ```rust,noplayground,test_harness
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-13/src/lib.rs}}
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+use crate::front_of_house::hosting::add_to_waitlist;
+
+pub fn eat_at_restaurant() {
+    add_to_waitlist();
+}
 ```
 
 </Listing>
@@ -82,7 +138,12 @@ crate.
 <Listing number="7-14" file-name="src/main.rs" caption="Bringing `HashMap` into scope in an idiomatic way">
 
 ```rust
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-14/src/main.rs}}
+use std::collections::HashMap;
+
+fn main() {
+    let mut map = HashMap::new();
+    map.insert(1, 2);
+}
 ```
 
 </Listing>
@@ -98,7 +159,16 @@ different parent modules, and how to refer to them.
 <Listing number="7-15" file-name="src/lib.rs" caption="Bringing two types with the same name into the same scope requires using their parent modules.">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-15/src/lib.rs:here}}
+use std::fmt;
+use std::io;
+
+fn function1() -> fmt::Result {
+    // --snip--
+}
+
+fn function2() -> io::Result<()> {
+    // --snip--
+}
 ```
 
 </Listing>
@@ -118,7 +188,16 @@ the code in Listing 7-15 by renaming one of the two `Result` types using `as`.
 <Listing number="7-16" file-name="src/lib.rs" caption="Renaming a type when it’s brought into scope with the `as` keyword">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-16/src/lib.rs:here}}
+use std::fmt::Result;
+use std::io::Result as IoResult;
+
+fn function1() -> Result {
+    // --snip--
+}
+
+fn function2() -> IoResult<()> {
+    // --snip--
+}
 ```
 
 </Listing>
@@ -143,7 +222,17 @@ changed to `pub use`.
 <Listing number="7-17" file-name="src/lib.rs" caption="Making a name available for any code to use from a new scope with `pub use`">
 
 ```rust,noplayground,test_harness
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-17/src/lib.rs}}
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+pub use crate::front_of_house::hosting;
+
+pub fn eat_at_restaurant() {
+    hosting::add_to_waitlist();
+}
 ```
 
 </Listing>
@@ -181,7 +270,7 @@ added this line to _Cargo.toml_:
 <Listing file-name="Cargo.toml">
 
 ```toml
-{{#include ../listings/ch02-guessing-game-tutorial/listing-02-02/Cargo.toml:9:}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch02-guessing-game-tutorial/listing-02-02/Cargo.toml:9
 ```
 
 </Listing>
@@ -197,7 +286,11 @@ Number”][rand]<!-- ignore --> in Chapter 2, we brought the `Rng` trait into
 scope and called the `rand::thread_rng` function:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch02-guessing-game-tutorial/listing-02-03/src/main.rs:ch07-04}}
+use rand::Rng;
+
+fn main() {
+    let secret_number = rand::thread_rng().gen_range(1..=100);
+}
 ```
 
 Members of the Rust community have made many packages available at
@@ -232,7 +325,10 @@ bring items from `std` into scope:
 <Listing file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/no-listing-01-use-std-unnested/src/main.rs:here}}
+// --snip--
+use std::cmp::Ordering;
+use std::io;
+// --snip--
 ```
 
 </Listing>
@@ -245,7 +341,9 @@ differ, as shown in Listing 7-18.
 <Listing number="7-18" file-name="src/main.rs" caption="Specifying a nested path to bring multiple items with the same prefix into scope">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-18/src/main.rs:here}}
+// --snip--
+use std::{cmp::Ordering, io};
+// --snip--
 ```
 
 </Listing>
@@ -262,7 +360,8 @@ two `use` statements that share a subpath. For example, Listing 7-19 shows two
 <Listing number="7-19" file-name="src/lib.rs" caption="Two `use` statements where one is a subpath of the other">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-19/src/lib.rs}}
+use std::io;
+use std::io::Write;
 ```
 
 </Listing>
@@ -274,7 +373,7 @@ the nested path, as shown in Listing 7-20.
 <Listing number="7-20" file-name="src/lib.rs" caption="Combining the paths in Listing 7-19 into one `use` statement">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-20/src/lib.rs}}
+use std::io::{self, Write};
 ```
 
 </Listing>

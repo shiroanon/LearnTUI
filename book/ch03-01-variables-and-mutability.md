@@ -18,14 +18,36 @@ code with the following code, which won’t compile just yet:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-01-variables-are-immutable/src/main.rs}}
+fn main() {
+    let x = 5;
+    println!("The value of x is: {x}");
+    x = 6;
+    println!("The value of x is: {x}");
+}
 ```
 
 Save and run the program using `cargo run`. You should receive an error message
 regarding an immutability error, as shown in this output:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-01-variables-are-immutable/output.txt}}
+$ cargo run
+   Compiling variables v0.1.0 (file:///projects/variables)
+error[E0384]: cannot assign twice to immutable variable `x`
+ --> src/main.rs:4:5
+|
+2 |     let x = 5;
+| - first assignment to `x`
+3 |     println!("The value of x is: {x}");
+4 |     x = 6;
+| ^^^^^ cannot assign twice to immutable variable
+|
+help: consider making this binding mutable
+|
+2 |     let mut x = 5;
+| +++
+
+For more information about this error, try `rustc --explain E0384`.
+error: could not compile `variables` (bin "variables") due to 1 previous error
 ```
 
 This example shows how the compiler helps you find errors in your programs.
@@ -58,13 +80,23 @@ For example, let’s change _src/main.rs_ to the following:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-02-adding-mut/src/main.rs}}
+fn main() {
+    let mut x = 5;
+    println!("The value of x is: {x}");
+    x = 6;
+    println!("The value of x is: {x}");
+}
 ```
 
 When we run the program now, we get this:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-02-adding-mut/output.txt}}
+$ cargo run
+   Compiling variables v0.1.0 (file:///projects/variables)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running `target/debug/variables`
+The value of x is: 5
+The value of x is: 6
 ```
 
 We’re allowed to change the value bound to `x` from `5` to `6` when `mut` is
@@ -136,7 +168,18 @@ use of the `let` keyword as follows:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-03-shadowing/src/main.rs}}
+fn main() {
+    let x = 5;
+
+    let x = x + 1;
+
+    {
+        let x = x * 2;
+        println!("The value of x in the inner scope is: {x}");
+    }
+
+    println!("The value of x is: {x}");
+}
 ```
 
 This program first binds `x` to a value of `5`. Then, it creates a new variable
@@ -148,7 +191,12 @@ When that scope is over, the inner shadowing ends and `x` returns to being `6`.
 When we run this program, it will output the following:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-03-shadowing/output.txt}}
+$ cargo run
+   Compiling variables v0.1.0 (file:///projects/variables)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running `target/debug/variables`
+The value of x in the inner scope is: 12
+The value of x is: 6
 ```
 
 Shadowing is different from marking a variable as `mut` because we’ll get a
@@ -164,7 +212,8 @@ program asks a user to show how many spaces they want between some text by
 inputting space characters, and then we want to store that input as a number:
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-04-shadowing-can-change-types/src/main.rs:here}}
+    let spaces = "   ";
+    let spaces = spaces.len();
 ```
 
 The first `spaces` variable is a string type, and the second `spaces` variable
@@ -174,13 +223,25 @@ the simpler `spaces` name. However, if we try to use `mut` for this, as shown
 here, we’ll get a compile-time error:
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-05-mut-cant-change-types/src/main.rs:here}}
+    let mut spaces = "   ";
+    spaces = spaces.len();
 ```
 
 The error says we’re not allowed to mutate a variable’s type:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-05-mut-cant-change-types/output.txt}}
+$ cargo run
+   Compiling variables v0.1.0 (file:///projects/variables)
+error[E0308]: mismatched types
+ --> src/main.rs:3:14
+|
+2 |     let mut spaces = "   ";
+| ----- expected due to this value
+3 |     spaces = spaces.len();
+| ^^^^^^^^^^^^ expected `&str`, found `usize`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `variables` (bin "variables") due to 1 previous error
 ```
 
 Now that we’ve explored how variables work, let’s look at more data types they

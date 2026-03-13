@@ -12,7 +12,21 @@ exactly that in our project’s _src/main.rs_.
 <Listing number="5-8" file-name="src/main.rs" caption="Calculating the area of a rectangle specified by separate width and height variables">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-08/src/main.rs:all}}
+fn main() {
+    let width1 = 30;
+    let height1 = 50;
+
+    println!(
+        "The area of the rectangle is {} square pixels.",
+        area(width1, height1)
+    );
+}
+
+// ANCHOR: here
+fn area(width: u32, height: u32) -> u32 {
+    // ANCHOR_END: here
+    width * height
+}
 ```
 
 </Listing>
@@ -20,7 +34,11 @@ exactly that in our project’s _src/main.rs_.
 Now, run this program using `cargo run`:
 
 ```console
-{{#include ../listings/ch05-using-structs-to-structure-related-data/listing-05-08/output.txt}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running `target/debug/rectangles`
+The area of the rectangle is 1500 square pixels.
 ```
 
 This code succeeds in figuring out the area of the rectangle by calling the
@@ -30,7 +48,7 @@ and readable.
 The issue with this code is evident in the signature of `area`:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-08/src/main.rs:here}}
+fn area(width: u32, height: u32) -> u32 {
 ```
 
 The `area` function is supposed to calculate the area of one rectangle, but the
@@ -47,7 +65,18 @@ Listing 5-9 shows another version of our program that uses tuples.
 <Listing number="5-9" file-name="src/main.rs" caption="Specifying the width and height of the rectangle with a tuple">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-09/src/main.rs}}
+fn main() {
+    let rect1 = (30, 50);
+
+    println!(
+        "The area of the rectangle is {} square pixels.",
+        area(rect1)
+    );
+}
+
+fn area(dimensions: (u32, u32)) -> u32 {
+    dimensions.0 * dimensions.1
+}
 ```
 
 </Listing>
@@ -77,7 +106,26 @@ parts, as shown in Listing 5-10.
 <Listing number="5-10" file-name="src/main.rs" caption="Defining a `Rectangle` struct">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-10/src/main.rs}}
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    println!(
+        "The area of the rectangle is {} square pixels.",
+        area(&rect1)
+    );
+}
+
+fn area(rectangle: &Rectangle) -> u32 {
+    rectangle.width * rectangle.height
+}
 ```
 
 </Listing>
@@ -117,7 +165,19 @@ previous chapters. This won’t work, however.
 <Listing number="5-11" file-name="src/main.rs" caption="Attempting to print a `Rectangle` instance">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-11/src/main.rs}}
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    println!("rect1 is {rect1}");
+}
 ```
 
 </Listing>
@@ -125,7 +185,23 @@ previous chapters. This won’t work, however.
 When we compile this code, we get an error with this core message:
 
 ```text
-{{#include ../listings/ch05-using-structs-to-structure-related-data/listing-05-11/output.txt:3}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+error[E0277]: `Rectangle` doesn't implement `std::fmt::Display`
+  --> src/main.rs:12:25
+|
+12 |     println!("rect1 is {rect1}");
+| -^^^^^-
+|  |  |
+|  | `Rectangle` cannot be formatted with the default formatter
+| required by this formatting parameter
+|
+   = help: the trait `std::fmt::Display` is not implemented for `Rectangle`
+   = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+   = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `rectangles` (bin "rectangles") due to 1 previous error
 ```
 
 The `println!` macro can do many kinds of formatting, and by default, the curly
@@ -142,7 +218,7 @@ implementation of `Display` to use with `println!` and the `{}` placeholder.
 If we continue reading the errors, we’ll find this helpful note:
 
 ```text
-{{#include ../listings/ch05-using-structs-to-structure-related-data/listing-05-11/output.txt:9:10}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch05-using-structs-to-structure-related-data/listing-05-11/output.txt:9
 ```
 
 Let’s try it! The `println!` macro call will now look like `println!("rect1 is
@@ -154,13 +230,33 @@ we can see its value while we’re debugging our code.
 Compile the code with this change. Drat! We still get an error:
 
 ```text
-{{#include ../listings/ch05-using-structs-to-structure-related-data/output-only-01-debug/output.txt:3}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+error[E0277]: `Rectangle` doesn't implement `Debug`
+  --> src/main.rs:12:31
+|
+12 |     println!("rect1 is {:?}", rect1);
+| ----   ^^^^^ `Rectangle` cannot be formatted using `{:?}` because it doesn't implement `Debug`
+|  |
+| required by this formatting parameter
+|
+   = help: the trait `Debug` is not implemented for `Rectangle`
+   = note: add `#[derive(Debug)]` to `Rectangle` or manually `impl Debug for Rectangle`
+   = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `Rectangle` with `#[derive(Debug)]`
+|
+ 1 + #[derive(Debug)]
+ 2 | struct Rectangle {
+|
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `rectangles` (bin "rectangles") due to 1 previous error
 ```
 
 But again, the compiler gives us a helpful note:
 
 ```text
-{{#include ../listings/ch05-using-structs-to-structure-related-data/output-only-01-debug/output.txt:9:10}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch05-using-structs-to-structure-related-data/output-only-01-debug/output.txt:9
 ```
 
 Rust _does_ include functionality to print out debugging information, but we
@@ -171,7 +267,20 @@ struct definition, as shown in Listing 5-12.
 <Listing number="5-12" file-name="src/main.rs" caption="Adding the attribute to derive the `Debug` trait and printing the `Rectangle` instance using debug formatting">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-12/src/main.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    println!("rect1 is {rect1:?}");
+}
 ```
 
 </Listing>
@@ -180,7 +289,11 @@ Now when we run the program, we won’t get any errors, and we’ll see the
 following output:
 
 ```console
-{{#include ../listings/ch05-using-structs-to-structure-related-data/listing-05-12/output.txt}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.48s
+     Running `target/debug/rectangles`
+rect1 is Rectangle { width: 30, height: 50 }
 ```
 
 Nice! It’s not the prettiest output, but it shows the values of all the fields
@@ -190,7 +303,14 @@ those cases, we can use `{:#?}` instead of `{:?}` in the `println!` string. In
 this example, using the `{:#?}` style will output the following:
 
 ```console
-{{#include ../listings/ch05-using-structs-to-structure-related-data/output-only-02-pretty-debug/output.txt}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.48s
+     Running `target/debug/rectangles`
+rect1 is Rectangle {
+    width: 30,
+    height: 50,
+}
 ```
 
 Another way to print out a value using the `Debug` format is to use the [`dbg!`
@@ -209,7 +329,21 @@ Here’s an example where we’re interested in the value that gets assigned to 
 `width` field, as well as the value of the whole struct in `rect1`:
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/no-listing-05-dbg-macro/src/main.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let scale = 2;
+    let rect1 = Rectangle {
+        width: dbg!(30 * scale),
+        height: 50,
+    };
+
+    dbg!(&rect1);
+}
 ```
 
 We can put `dbg!` around the expression `30 * scale` and, because `dbg!`
@@ -219,7 +353,15 @@ take ownership of `rect1`, so we use a reference to `rect1` in the next call.
 Here’s what the output of this example looks like:
 
 ```console
-{{#include ../listings/ch05-using-structs-to-structure-related-data/no-listing-05-dbg-macro/output.txt}}
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running `target/debug/rectangles`
+[src/main.rs:10:16] 30 * scale = 60
+[src/main.rs:14:5] &rect1 = Rectangle {
+    width: 60,
+    height: 50,
+}
 ```
 
 We can see the first bit of output came from _src/main.rs_ line 10 where we’re

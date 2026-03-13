@@ -22,7 +22,37 @@ between the two tests, as shown in Listing 12-20.
 <Listing number="12-20" file-name="src/lib.rs" caption="Adding a new failing test for the case-insensitive function we’re about to add">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-20/src/lib.rs:here}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn case_sensitive() {
+        let query = "duct";
+        let contents = "\
+Rust:
+safe, fast, productive.
+Pick three.
+Duct tape.";
+
+        assert_eq!(vec!["safe, fast, productive."], search(query, contents));
+    }
+
+    #[test]
+    fn case_insensitive() {
+        let query = "rUsT";
+        let contents = "\
+Rust:
+safe, fast, productive.
+Pick three.
+Trust me.";
+
+        assert_eq!(
+            vec!["Rust:", "Trust me."],
+            search_case_insensitive(query, contents)
+        );
+    }
+}
 ```
 
 </Listing>
@@ -53,7 +83,21 @@ they’ll be the same case when we check whether the line contains the query.
 <Listing number="12-21" file-name="src/lib.rs" caption="Defining the `search_case_insensitive` function to lowercase the query and the line before comparing them">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-21/src/lib.rs:here}}
+pub fn search_case_insensitive<'a>(
+    query: &str,
+    contents: &'a str,
+) -> Vec<&'a str> {
+    let query = query.to_lowercase();
+    let mut results = Vec::new();
+
+    for line in contents.lines() {
+        if line.to_lowercase().contains(&query) {
+            results.push(line);
+        }
+    }
+
+    results
+}
 ```
 
 </Listing>
@@ -82,7 +126,28 @@ find matches no matter what the case of the query is.
 Let’s see if this implementation passes the tests:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-21/output.txt}}
+$ cargo test
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running unittests src/lib.rs (target/debug/deps/minigrep-9cd200e5fac0fc94)
+
+running 2 tests
+test tests::case_insensitive ... ok
+test tests::case_sensitive ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/minigrep-9cd200e5fac0fc94)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests minigrep
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 Great! They passed. Now let’s call the new `search_case_insensitive` function
@@ -94,7 +159,11 @@ anywhere yet:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-22/src/main.rs:here}}
+pub struct Config {
+    pub query: String,
+    pub file_path: String,
+    pub ignore_case: bool,
+}
 ```
 
 We added the `ignore_case` field that holds a Boolean. Next, we need the `run`
@@ -105,7 +174,25 @@ function, as shown in Listing 12-22. This still won’t compile yet.
 <Listing number="12-22" file-name="src/main.rs" caption="Calling either `search` or `search_case_insensitive` based on the value in `config.ignore_case`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-22/src/main.rs:there}}
+use minigrep::{search, search_case_insensitive};
+
+// --snip--
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    let contents = fs::read_to_string(config.file_path)?;
+
+    let results = if config.ignore_case {
+        search_case_insensitive(&config.query, &contents)
+    } else {
+        search(&config.query, &contents)
+    };
+
+    for line in results {
+        println!("{line}");
+    }
+
+    Ok(())
+}
 ```
 
 </Listing>
@@ -119,7 +206,24 @@ for an environment variable named `IGNORE_CASE`, as shown in Listing 12-23.
 <Listing number="12-23" file-name="src/main.rs" caption="Checking for any value in an environment variable named `IGNORE_CASE`">
 
 ```rust,ignore,noplayground
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-23/src/main.rs:here}}
+impl Config {
+    fn build(args: &[String]) -> Result<Config, &'static str> {
+        if args.len() < 3 {
+            return Err("not enough arguments");
+        }
+
+        let query = args[1].clone();
+        let file_path = args[2].clone();
+
+        let ignore_case = env::var("IGNORE_CASE").is_ok();
+
+        Ok(Config {
+            query,
+            file_path,
+            ignore_case,
+        })
+    }
+}
 ```
 
 </Listing>
@@ -148,7 +252,12 @@ variable set and with the query `to`, which should match any line that contains
 the word _to_ in all lowercase:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-23/output.txt}}
+$ cargo run -- to poem.txt
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/minigrep to poem.txt`
+Are you nobody, too?
+How dreary to be somebody!
 ```
 
 Looks like that still works! Now let’s run the program with `IGNORE_CASE` set

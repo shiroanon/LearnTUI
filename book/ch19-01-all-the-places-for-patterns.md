@@ -85,7 +85,7 @@ To see the pattern-matching aspect of `let` more clearly, consider Listing
 <Listing number="19-1" caption="Using a pattern to destructure a tuple and create three variables at once">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-01/src/main.rs:here}}
+    let (x, y, z) = (1, 2, 3);
 ```
 
 </Listing>
@@ -104,7 +104,7 @@ elements into two variables, which won’t work.
 <Listing number="19-2" caption="Incorrectly constructing a pattern whose variables don’t match the number of elements in the tuple">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-02/src/main.rs:here}}
+    let (x, y) = (1, 2, 3);
 ```
 
 </Listing>
@@ -112,7 +112,21 @@ elements into two variables, which won’t work.
 Attempting to compile this code results in this type error:
 
 ```console
-{{#include ../listings/ch19-patterns-and-matching/listing-19-02/output.txt}}
+$ cargo run
+   Compiling patterns v0.1.0 (file:///projects/patterns)
+error[E0308]: mismatched types
+ --> src/main.rs:2:9
+|
+2 |     let (x, y) = (1, 2, 3);
+| ^^^^^^   --------- this expression has type `({integer}, {integer}, {integer})`
+|  |
+| expected a tuple with 3 elements, found one with 2 elements
+|
+  = note: expected tuple `({integer}, {integer}, {integer})`
+             found tuple `(_, _)`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `patterns` (bin "patterns") due to 1 previous error
 ```
 
 To fix the error, we could ignore one or more of the values in the tuple using
@@ -143,7 +157,25 @@ input.
 <Listing number="19-3" file-name="src/main.rs" caption="Mixing `if let`, `else if`, `else if let`, and `else`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-03/src/main.rs}}
+fn main() {
+    let favorite_color: Option<&str> = None;
+    let is_tuesday = false;
+    let age: Result<u8, _> = "34".parse();
+
+    if let Some(color) = favorite_color {
+        println!("Using your favorite color, {color}, as the background");
+    } else if is_tuesday {
+        println!("Tuesday is green day!");
+    } else if let Ok(age) = age {
+        if age > 30 {
+            println!("Using purple as the background color");
+        } else {
+            println!("Using orange as the background color");
+        }
+    } else {
+        println!("Using blue as the background color");
+    }
+}
 ```
 
 </Listing>
@@ -182,7 +214,16 @@ but in this case checking a `Result` instead of an `Option`.
 <Listing number="19-4" caption="Using a `while let` loop to print values for as long as `rx.recv()` returns `Ok`">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-04/src/main.rs:here}}
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for val in [1, 2, 3] {
+            tx.send(val).unwrap();
+        }
+    });
+
+    while let Ok(value) = rx.recv() {
+        println!("{value}");
+    }
 ```
 
 </Listing>
@@ -206,7 +247,11 @@ apart, a tuple as part of the `for` loop.
 <Listing number="19-5" caption="Using a pattern in a `for` loop to destructure a tuple">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-05/src/main.rs:here}}
+    let v = vec!['a', 'b', 'c'];
+
+    for (index, value) in v.iter().enumerate() {
+        println!("{value} is at index {index}");
+    }
 ```
 
 </Listing>
@@ -215,7 +260,13 @@ The code in Listing 19-5 will print the following:
 
 
 ```console
-{{#include ../listings/ch19-patterns-and-matching/listing-19-05/output.txt}}
+$ cargo run
+   Compiling patterns v0.1.0 (file:///projects/patterns)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running `target/debug/patterns`
+a is at index 0
+b is at index 1
+c is at index 2
 ```
 
 We adapt an iterator using the `enumerate` method so that it produces a value
@@ -234,7 +285,9 @@ declares a function named `foo` that takes one parameter named `x` of type
 <Listing number="19-6" caption="A function signature using patterns in the parameters">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-06/src/main.rs:here}}
+fn foo(x: i32) {
+    // code goes here
+}
 ```
 
 </Listing>
@@ -246,7 +299,14 @@ as we pass it to a function.
 <Listing number="19-7" file-name="src/main.rs" caption="A function with parameters that destructure a tuple">
 
 ```rust
-{{#rustdoc_include ../listings/ch19-patterns-and-matching/listing-19-07/src/main.rs}}
+fn print_coordinates(&(x, y): &(i32, i32)) {
+    println!("Current location: ({x}, {y})");
+}
+
+fn main() {
+    let point = (3, 5);
+    print_coordinates(&point);
+}
 ```
 
 </Listing>

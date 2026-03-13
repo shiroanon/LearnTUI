@@ -31,7 +31,23 @@ use these together to implement the counting example, as shown in Listing 17-6.
 <Listing number="17-6" caption="Creating a new task to print one thing while the main task prints something else" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-06/src/main.rs:all}}
+use std::time::Duration;
+
+fn main() {
+    trpl::block_on(async {
+        trpl::spawn_task(async {
+            for i in 1..10 {
+                println!("hi number {i} from the first task!");
+                trpl::sleep(Duration::from_millis(500)).await;
+            }
+        });
+
+        for i in 1..5 {
+            println!("hi number {i} from the second task!");
+            trpl::sleep(Duration::from_millis(500)).await;
+        }
+    });
+}
 ```
 
 </Listing>
@@ -80,7 +96,19 @@ we also unwrap it after awaiting it.
 <Listing number="17-7" caption="Using `await` with a join handle to run a task to completion" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-07/src/main.rs:handle}}
+        let handle = trpl::spawn_task(async {
+            for i in 1..10 {
+                println!("hi number {i} from the first task!");
+                trpl::sleep(Duration::from_millis(500)).await;
+            }
+        });
+
+        for i in 1..5 {
+            println!("hi number {i} from the second task!");
+            trpl::sleep(Duration::from_millis(500)).await;
+        }
+
+        handle.await.unwrap();
 ```
 
 </Listing>
@@ -130,7 +158,21 @@ ignore the output, because it’s just a tuple containing two unit values.
 <Listing number="17-8" caption="Using `trpl::join` to await two anonymous futures" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-08/src/main.rs:join}}
+        let fut1 = async {
+            for i in 1..10 {
+                println!("hi number {i} from the first task!");
+                trpl::sleep(Duration::from_millis(500)).await;
+            }
+        };
+
+        let fut2 = async {
+            for i in 1..5 {
+                println!("hi number {i} from the second task!");
+                trpl::sleep(Duration::from_millis(500)).await;
+            }
+        };
+
+        trpl::join(fut1, fut2).await;
 ```
 
 </Listing>
@@ -198,7 +240,13 @@ async block—_not_ spawning a separate task as we spawned a separate thread.
 <Listing number="17-9" caption="Creating an async channel and assigning the two halves to `tx` and `rx`" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-09/src/main.rs:channel}}
+        let (tx, mut rx) = trpl::channel();
+
+        let val = String::from("hi");
+        tx.send(val).unwrap();
+
+        let received = rx.recv().await.unwrap();
+        println!("received '{received}'");
 ```
 
 </Listing>
@@ -239,7 +287,23 @@ between them, as shown in Listing 17-10.
 <Listing number="17-10" caption="Sending and receiving multiple messages over the async channel and sleeping with an `await` between each message" file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-10/src/main.rs:many-messages}}
+        let (tx, mut rx) = trpl::channel();
+
+        let vals = vec![
+            String::from("hi"),
+            String::from("from"),
+            String::from("the"),
+            String::from("future"),
+        ];
+
+        for val in vals {
+            tx.send(val).unwrap();
+            trpl::sleep(Duration::from_millis(500)).await;
+        }
+
+        while let Some(value) = rx.recv().await {
+            println!("received '{value}'");
+        }
 ```
 
 </Listing>
@@ -305,7 +369,27 @@ what we’re trying _not_ to do.
 <Listing number="17-11" caption="Separating `send` and `recv` into their own `async` blocks and awaiting the futures for those blocks" file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-11/src/main.rs:futures}}
+        let tx_fut = async {
+            let vals = vec![
+                String::from("hi"),
+                String::from("from"),
+                String::from("the"),
+                String::from("future"),
+            ];
+
+            for val in vals {
+                tx.send(val).unwrap();
+                trpl::sleep(Duration::from_millis(500)).await;
+            }
+        };
+
+        let rx_fut = async {
+            while let Some(value) = rx.recv().await {
+                println!("received '{value}'");
+            }
+        };
+
+        trpl::join(tx_fut, rx_fut).await;
 ```
 
 </Listing>
@@ -350,7 +434,10 @@ In Listing 17-12, we change the block used to send messages from `async` to
 <Listing number="17-12" caption="A revision of the code from Listing 17-11 that correctly shuts down when complete" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-12/src/main.rs:with-move}}
+        let (tx, mut rx) = trpl::channel();
+
+        let tx_fut = async move {
+            // --snip--
 ```
 
 </Listing>
@@ -368,7 +455,44 @@ on `tx` if we want to send messages from multiple futures, as shown in Listing
 <Listing number="17-13" caption="Using multiple producers with async blocks" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-13/src/main.rs:here}}
+        let (tx, mut rx) = trpl::channel();
+
+        let tx1 = tx.clone();
+        let tx1_fut = async move {
+            let vals = vec![
+                String::from("hi"),
+                String::from("from"),
+                String::from("the"),
+                String::from("future"),
+            ];
+
+            for val in vals {
+                tx1.send(val).unwrap();
+                trpl::sleep(Duration::from_millis(500)).await;
+            }
+        };
+
+        let rx_fut = async {
+            while let Some(value) = rx.recv().await {
+                println!("received '{value}'");
+            }
+        };
+
+        let tx_fut = async move {
+            let vals = vec![
+                String::from("more"),
+                String::from("messages"),
+                String::from("for"),
+                String::from("you"),
+            ];
+
+            for val in vals {
+                tx.send(val).unwrap();
+                trpl::sleep(Duration::from_millis(1500)).await;
+            }
+        };
+
+        trpl::join!(tx1_fut, tx_fut, rx_fut);
 ```
 
 </Listing>

@@ -70,7 +70,14 @@ The crate root file in this case is _src/main.rs_, and it contains:
 <Listing file-name="src/main.rs">
 
 ```rust,noplayground,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/quick-reference-example/src/main.rs}}
+use crate::garden::vegetables::Asparagus;
+
+pub mod garden;
+
+fn main() {
+    let plant = Asparagus {};
+    println!("I'm growing {plant:?}!");
+}
 ```
 
 </Listing>
@@ -81,7 +88,7 @@ _src/garden.rs_, which is:
 <Listing file-name="src/garden.rs">
 
 ```rust,noplayground,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/quick-reference-example/src/garden.rs}}
+pub mod vegetables;
 ```
 
 </Listing>
@@ -90,7 +97,8 @@ Here, `pub mod vegetables;` means the code in _src/garden/vegetables.rs_ is
 included too. That code is:
 
 ```rust,noplayground,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/quick-reference-example/src/garden/vegetables.rs}}
+#[derive(Debug)]
+pub struct Asparagus {}
 ```
 
 Now let’s get into the details of these rules and demonstrate them in action!
@@ -125,7 +133,21 @@ section.
 <Listing number="7-1" file-name="src/lib.rs" caption="A `front_of_house` module containing other modules that then contain functions">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-01/src/lib.rs}}
+mod front_of_house {
+    mod hosting {
+        fn add_to_waitlist() {}
+
+        fn seat_at_table() {}
+    }
+
+    mod serving {
+        fn take_order() {}
+
+        fn serve_order() {}
+
+        fn take_payment() {}
+    }
+}
 ```
 
 </Listing>

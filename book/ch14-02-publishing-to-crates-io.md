@@ -29,7 +29,19 @@ for an `add_one` function in a crate named `my_crate`.
 <Listing number="14-1" file-name="src/lib.rs" caption="A documentation comment for a function">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-01/src/lib.rs}}
+/// Adds one to the number given.
+///
+/// # Examples
+///
+/// ```
+/// let arg = 5;
+/// let answer = my_crate::add_one(arg);
+///
+/// assert_eq!(6, answer);
+/// ```
+pub fn add_one(x: i32) -> i32 {
+    x + 1
+}
 ```
 
 </Listing>
@@ -121,7 +133,13 @@ start with `//!` to the beginning of the _src/lib.rs_ file, as shown in Listing
 <Listing number="14-2" file-name="src/lib.rs" caption="The documentation for the `my_crate` crate as a whole">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-02/src/lib.rs:here}}
+//! # My Crate
+//!
+//! `my_crate` is a collection of utilities to make performing certain
+//! calculations more convenient.
+
+/// Adds one to the number given.
+// --snip--
 ```
 
 </Listing>
@@ -181,7 +199,35 @@ function named `mix`, as shown in Listing 14-3.
 <Listing number="14-3" file-name="src/lib.rs" caption="An `art` library with items organized into `kinds` and `utils` modules">
 
 ```rust,noplayground,test_harness
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-03/src/lib.rs:here}}
+//! # Art
+//!
+//! A library for modeling artistic concepts.
+
+pub mod kinds {
+    /// The primary colors according to the RYB color model.
+    pub enum PrimaryColor {
+        Red,
+        Yellow,
+        Blue,
+    }
+
+    /// The secondary colors according to the RYB color model.
+    pub enum SecondaryColor {
+        Orange,
+        Green,
+        Purple,
+    }
+}
+
+pub mod utils {
+    use crate::kinds::*;
+
+    /// Combines two primary colors in equal amounts to create
+    /// a secondary color.
+    pub fn mix(c1: PrimaryColor, c2: PrimaryColor) -> SecondaryColor {
+        // --snip--
+    }
+}
 ```
 
 </Listing>
@@ -206,7 +252,14 @@ currently defined. Listing 14-4 shows an example of a crate that uses the
 <Listing number="14-4" file-name="src/main.rs" caption="A crate using the `art` crate’s items with its internal structure exported">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-04/src/main.rs}}
+use art::kinds::PrimaryColor;
+use art::utils::mix;
+
+fn main() {
+    let red = PrimaryColor::Red;
+    let yellow = PrimaryColor::Yellow;
+    mix(red, yellow);
+}
 ```
 
 </Listing>
@@ -227,7 +280,21 @@ items at the top level, as shown in Listing 14-5.
 <Listing number="14-5" file-name="src/lib.rs" caption="Adding `pub use` statements to re-export items">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-05/src/lib.rs:here}}
+//! # Art
+//!
+//! A library for modeling artistic concepts.
+
+pub use self::kinds::PrimaryColor;
+pub use self::kinds::SecondaryColor;
+pub use self::utils::mix;
+
+pub mod kinds {
+    // --snip--
+}
+
+pub mod utils {
+    // --snip--
+}
 ```
 
 </Listing>
@@ -248,7 +315,12 @@ structure in Listing 14-5, as shown in Listing 14-6.
 <Listing number="14-6" file-name="src/main.rs" caption="A program using the re-exported items from the `art` crate">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch14-more-about-cargo/listing-14-06/src/main.rs:here}}
+use art::PrimaryColor;
+use art::mix;
+
+fn main() {
+    // --snip--
+}
 ```
 
 </Listing>

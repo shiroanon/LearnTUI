@@ -21,7 +21,22 @@ will display the following error, which means the compiler needs more
 information from us to know which type we want to use:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/output-only-01-no-type-annotations/output.txt}}
+$ cargo build
+   Compiling no_type_annotations v0.1.0 (file:///projects/no_type_annotations)
+error[E0284]: type annotations needed
+ --> src/main.rs:2:9
+|
+2 |     let guess = "42".parse().expect("Not a number!");
+| ^^^^^        ----- type must be known at this point
+|
+  = note: cannot satisfy `<_ as FromStr>::Err == _`
+help: consider giving `guess` an explicit type
+|
+2 |     let guess: /* Type */ = "42".parse().expect("Not a number!");
+| ++++++++++++
+
+For more information about this error, try `rustc --explain E0284`.
+error: could not compile `no_type_annotations` (bin "no_type_annotations") due to 1 previous error
 ```
 
 You’ll see different type annotations for other data types.
@@ -43,14 +58,14 @@ the type of an integer value.
 
 <span class="caption">Table 3-1: Integer Types in Rust</span>
 
-| Length  | Signed  | Unsigned |
+| Length | Signed | Unsigned |
 | ------- | ------- | -------- |
-| 8-bit   | `i8`    | `u8`     |
-| 16-bit  | `i16`   | `u16`    |
-| 32-bit  | `i32`   | `u32`    |
-| 64-bit  | `i64`   | `u64`    |
-| 128-bit | `i128`  | `u128`   |
-| Architecture-dependent | `isize` | `usize`  |
+| 8-bit | `i8` | `u8` |
+| 16-bit | `i16` | `u16` |
+| 32-bit | `i32` | `u32` |
+| 64-bit | `i64` | `u64` |
+| 128-bit | `i128` | `u128` |
+| Architecture-dependent | `isize` | `usize` |
 
 Each variant can be either signed or unsigned and has an explicit size.
 _Signed_ and _unsigned_ refer to whether it’s possible for the number to be
@@ -80,13 +95,13 @@ have the same value as if you had specified `1000`.
 
 <span class="caption">Table 3-2: Integer Literals in Rust</span>
 
-| Number literals  | Example       |
+| Number literals | Example |
 | ---------------- | ------------- |
-| Decimal          | `98_222`      |
-| Hex              | `0xff`        |
-| Octal            | `0o77`        |
-| Binary           | `0b1111_0000` |
-| Byte (`u8` only) | `b'A'`        |
+| Decimal | `98_222` |
+| Hex | `0xff` |
+| Octal | `0o77` |
+| Binary | `0b1111_0000` |
+| Byte (`u8` only) | `b'A'` |
 
 So how do you know which type of integer to use? If you’re unsure, Rust’s
 defaults are generally good places to start: Integer types default to `i32`.
@@ -137,7 +152,11 @@ Here’s an example that shows floating-point numbers in action:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-06-floating-point/src/main.rs}}
+fn main() {
+    let x = 2.0; // f64
+
+    let y: f32 = 3.0; // f32
+}
 ```
 
 Floating-point numbers are represented according to the IEEE-754 standard.
@@ -152,7 +171,23 @@ how you’d use each numeric operation in a `let` statement:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-07-numeric-operations/src/main.rs}}
+fn main() {
+    // addition
+    let sum = 5 + 10;
+
+    // subtraction
+    let difference = 95.5 - 4.3;
+
+    // multiplication
+    let product = 4 * 30;
+
+    // division
+    let quotient = 56.7 / 32.2;
+    let truncated = -5 / 3; // Results in -1
+
+    // remainder
+    let remainder = 43 % 5;
+}
 ```
 
 Each expression in these statements uses a mathematical operator and evaluates
@@ -169,7 +204,11 @@ Rust is specified using `bool`. For example:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-08-boolean/src/main.rs}}
+fn main() {
+    let t = true;
+
+    let f: bool = false; // with explicit type annotation
+}
 ```
 
 The main way to use Boolean values is through conditionals, such as an `if`
@@ -184,7 +223,11 @@ some examples of declaring `char` values:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-09-char/src/main.rs}}
+fn main() {
+    let c = 'z';
+    let z: char = 'ℤ'; // with explicit type annotation
+    let heart_eyed_cat = '😻';
+}
 ```
 
 Note that we specify `char` literals with single quotation marks, as opposed to
@@ -217,7 +260,9 @@ type annotations in this example:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-10-tuples/src/main.rs}}
+fn main() {
+    let tup: (i32, f64, u8) = (500, 6.4, 1);
+}
 ```
 
 The variable `tup` binds to the entire tuple because a tuple is considered a
@@ -227,7 +272,13 @@ use pattern matching to destructure a tuple value, like this:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-11-destructuring-tuples/src/main.rs}}
+fn main() {
+    let tup = (500, 6.4, 1);
+
+    let (x, y, z) = tup;
+
+    println!("The value of y is: {y}");
+}
 ```
 
 This program first creates a tuple and binds it to the variable `tup`. It then
@@ -242,7 +293,15 @@ the index of the value we want to access. For example:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-12-tuple-indexing/src/main.rs}}
+fn main() {
+    let x: (i32, f64, u8) = (500, 6.4, 1);
+
+    let five_hundred = x.0;
+
+    let six_point_four = x.1;
+
+    let one = x.2;
+}
 ```
 
 This program creates the tuple `x` and then accesses each element of the tuple
@@ -266,7 +325,9 @@ brackets:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-13-arrays/src/main.rs}}
+fn main() {
+    let a = [1, 2, 3, 4, 5];
+}
 ```
 
 Arrays are useful when you want your data allocated on the stack, the same as
@@ -323,7 +384,12 @@ like this:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-14-array-indexing/src/main.rs}}
+fn main() {
+    let a = [1, 2, 3, 4, 5];
+
+    let first = a[0];
+    let second = a[1];
+}
 ```
 
 In this example, the variable named `first` will get the value `1` because that
@@ -339,7 +405,28 @@ Chapter 2, to get an array index from the user:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore,panics
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-15-invalid-array-access/src/main.rs}}
+use std::io;
+
+fn main() {
+    let a = [1, 2, 3, 4, 5];
+
+    println!("Please enter an array index.");
+
+    let mut index = String::new();
+
+    io::stdin()
+        .read_line(&mut index)
+        .expect("Failed to read line");
+
+    let index: usize = index
+        .trim()
+        .parse()
+        .expect("Index entered was not a number");
+
+    let element = a[index];
+
+    println!("The value of the element at index {index} is: {element}");
+}
 ```
 
 This code compiles successfully. If you run this code using `cargo run` and

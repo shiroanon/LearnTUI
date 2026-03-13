@@ -14,7 +14,7 @@ Listing 8-1.
 <Listing number="8-1" caption="Creating a new, empty vector to hold values of type `i32`">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-01/src/main.rs:here}}
+    let v: Vec<i32> = Vec::new();
 ```
 
 </Listing>
@@ -39,7 +39,7 @@ Types”][data-types]<!-- ignore --> section of Chapter 3.
 <Listing number="8-2" caption="Creating a new vector containing values">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-02/src/main.rs:here}}
+    let v = vec![1, 2, 3];
 ```
 
 </Listing>
@@ -56,7 +56,12 @@ as shown in Listing 8-3.
 <Listing number="8-3" caption="Using the `push` method to add values to a vector">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-03/src/main.rs:here}}
+    let mut v = Vec::new();
+
+    v.push(5);
+    v.push(6);
+    v.push(7);
+    v.push(8);
 ```
 
 </Listing>
@@ -78,7 +83,16 @@ syntax and the `get` method.
 <Listing number="8-4" caption="Using indexing syntax and using the `get` method to access an item in a vector">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-04/src/main.rs:here}}
+    let v = vec![1, 2, 3, 4, 5];
+
+    let third: &i32 = &v[2];
+    println!("The third element is {third}");
+
+    let third: Option<&i32> = v.get(2);
+    match third {
+        Some(third) => println!("The third element is {third}"),
+        None => println!("There is no third element."),
+    }
 ```
 
 </Listing>
@@ -98,7 +112,10 @@ technique, as shown in Listing 8-5.
 <Listing number="8-5" caption="Attempting to access the element at index 100 in a vector containing five elements">
 
 ```rust,should_panic,panics
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-05/src/main.rs:here}}
+    let v = vec![1, 2, 3, 4, 5];
+
+    let does_not_exist = &v[100];
+    let does_not_exist = v.get(100);
 ```
 
 </Listing>
@@ -131,7 +148,13 @@ the function.
 <Listing number="8-6" caption="Attempting to add an element to a vector while holding a reference to an item">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-06/src/main.rs:here}}
+    let mut v = vec![1, 2, 3, 4, 5];
+
+    let first = &v[0];
+
+    v.push(6);
+
+    println!("The first element is: {first}");
 ```
 
 </Listing>
@@ -139,7 +162,22 @@ the function.
 Compiling this code will result in this error:
 
 ```console
-{{#include ../listings/ch08-common-collections/listing-08-06/output.txt}}
+$ cargo run
+   Compiling collections v0.1.0 (file:///projects/collections)
+error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immutable
+ --> src/main.rs:6:5
+|
+4 |     let first = &v[0];
+| - immutable borrow occurs here
+5 |
+6 |     v.push(6);
+| ^^^^^^^^^ mutable borrow occurs here
+7 |
+8 |     println!("The first element is: {first}");
+| ----- immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `collections` (bin "collections") due to 1 previous error
 ```
 
 The code in Listing 8-6 might look like it should work: Why should a reference
@@ -165,7 +203,10 @@ to use a `for` loop to get immutable references to each element in a vector of
 <Listing number="8-7" caption="Printing each element in a vector by iterating over the elements using a `for` loop">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-07/src/main.rs:here}}
+    let v = vec![100, 32, 57];
+    for i in &v {
+        println!("{i}");
+    }
 ```
 
 </Listing>
@@ -177,7 +218,10 @@ will add `50` to each element.
 <Listing number="8-8" caption="Iterating over mutable references to elements in a vector">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-08/src/main.rs:here}}
+    let mut v = vec![100, 32, 57];
+    for i in &mut v {
+        *i += 50;
+    }
 ```
 
 </Listing>
@@ -212,7 +256,17 @@ hold different types. We’ve demonstrated this in Listing 8-9.
 <Listing number="8-9" caption="Defining an enum to store values of different types in one vector">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-09/src/main.rs:here}}
+    enum SpreadsheetCell {
+        Int(i32),
+        Float(f64),
+        Text(String),
+    }
+
+    let row = vec![
+        SpreadsheetCell::Int(3),
+        SpreadsheetCell::Text(String::from("blue")),
+        SpreadsheetCell::Float(10.12),
+    ];
 ```
 
 </Listing>
@@ -242,7 +296,11 @@ annotated in Listing 8-10.
 <Listing number="8-10" caption="Showing where the vector and its elements are dropped">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-10/src/main.rs:here}}
+    {
+        let v = vec![1, 2, 3, 4];
+
+        // do stuff with v
+    } // <- v goes out of scope and is freed here
 ```
 
 </Listing>

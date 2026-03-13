@@ -48,7 +48,7 @@ function to create an instance, shown in Listing 8-11.
 <Listing number="8-11" caption="Creating a new, empty `String`">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-11/src/main.rs:here}}
+    let mut s = String::new();
 ```
 
 </Listing>
@@ -62,7 +62,12 @@ two examples.
 <Listing number="8-12" caption="Using the `to_string` method to create a `String` from a string literal">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-12/src/main.rs:here}}
+    let data = "initial contents";
+
+    let s = data.to_string();
+
+    // The method also works on a literal directly:
+    let s = "initial contents".to_string();
 ```
 
 </Listing>
@@ -76,7 +81,7 @@ that uses `to_string`.
 <Listing number="8-13" caption="Using the `String::from` function to create a `String` from a string literal">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-13/src/main.rs:here}}
+    let s = String::from("initial contents");
 ```
 
 </Listing>
@@ -93,7 +98,21 @@ data in them, as shown in Listing 8-14.
 <Listing number="8-14" caption="Storing greetings in different languages in strings">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-14/src/main.rs:here}}
+    let hello = String::from("السلام عليكم");
+    let hello = String::from("Dobrý den");
+    let hello = String::from("Hello");
+    let hello = String::from("שלום");
+    let hello = String::from("नमस्ते");
+    let hello = String::from("こんにちは");
+    let hello = String::from("안녕하세요");
+    let hello = String::from("你好");
+    let hello = String::from("Olá");
+    // ANCHOR: russian
+    let hello = String::from("Здравствуйте");
+    // ANCHOR_END: russian
+    // ANCHOR: spanish
+    let hello = String::from("Hola");
+    // ANCHOR_END: spanish
 ```
 
 </Listing>
@@ -118,7 +137,8 @@ as shown in Listing 8-15.
 <Listing number="8-15" caption="Appending a string slice to a `String` using the `push_str` method">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-15/src/main.rs:here}}
+    let mut s = String::from("foo");
+    s.push_str("bar");
 ```
 
 </Listing>
@@ -131,7 +151,10 @@ parameter. For example, in the code in Listing 8-16, we want to be able to use
 <Listing number="8-16" caption="Using a string slice after appending its contents to a `String`">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-16/src/main.rs:here}}
+    let mut s1 = String::from("foo");
+    let s2 = "bar";
+    s1.push_str(s2);
+    println!("s2 is {s2}");
 ```
 
 </Listing>
@@ -146,7 +169,8 @@ method.
 <Listing number="8-17" caption="Adding one character to a `String` value using `push`">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-17/src/main.rs:here}}
+    let mut s = String::from("lo");
+    s.push('l');
 ```
 
 </Listing>
@@ -165,7 +189,9 @@ the `+` operator, as shown in Listing 8-18.
 <Listing number="8-18" caption="Using the `+` operator to combine two `String` values into a new `String` value">
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-18/src/main.rs:here}}
+    let s1 = String::from("Hello, ");
+    let s2 = String::from("world!");
+    let s3 = s1 + &s2; // note s1 has been moved here and can no longer be used
 ```
 
 </Listing>
@@ -213,7 +239,11 @@ If we need to concatenate multiple strings, the behavior of the `+` operator
 gets unwieldy:
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/no-listing-01-concat-multiple-strings/src/main.rs:here}}
+    let s1 = String::from("tic");
+    let s2 = String::from("tac");
+    let s3 = String::from("toe");
+
+    let s = s1 + "-" + &s2 + "-" + &s3;
 ```
 
 At this point, `s` will be `tic-tac-toe`. With all of the `+` and `"`
@@ -221,7 +251,11 @@ characters, it’s difficult to see what’s going on. For combining strings in
 more complicated ways, we can instead use the `format!` macro:
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/no-listing-02-format/src/main.rs:here}}
+    let s1 = String::from("tic");
+    let s2 = String::from("tac");
+    let s3 = String::from("toe");
+
+    let s = format!("{s1}-{s2}-{s3}");
 ```
 
 This code also sets `s` to `tic-tac-toe`. The `format!` macro works like
@@ -240,7 +274,8 @@ get an error. Consider the invalid code in Listing 8-19.
 <Listing number="8-19" caption="Attempting to use indexing syntax with a `String`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-19/src/main.rs:here}}
+    let s1 = String::from("hi");
+    let h = s1[0];
 ```
 
 </Listing>
@@ -248,7 +283,24 @@ get an error. Consider the invalid code in Listing 8-19.
 This code will result in the following error:
 
 ```console
-{{#include ../listings/ch08-common-collections/listing-08-19/output.txt}}
+$ cargo run
+   Compiling collections v0.1.0 (file:///projects/collections)
+error[E0277]: the type `str` cannot be indexed by `{integer}`
+ --> src/main.rs:3:16
+|
+3 |     let h = s1[0];
+| ^ string indices are ranges of `usize`
+|
+  = help: the trait `SliceIndex<str>` is not implemented for `{integer}`
+  = note: you can use `.chars().nth()` or `.bytes().nth()`
+          for more information, see chapter 8 in The Book: <https://doc.rust-lang.org/book/ch08-02-strings.html#indexing-into-strings>
+  = help: the following other types implement trait `SliceIndex<T>`:
+            `usize` implements `SliceIndex<ByteStr>`
+            `usize` implements `SliceIndex<[T]>`
+  = note: required for `String` to implement `Index<{integer}>`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `collections` (bin "collections") due to 1 previous error
 ```
 
 The error tells the story: Rust strings don’t support indexing. But why not? To
@@ -260,7 +312,7 @@ A `String` is a wrapper over a `Vec<u8>`. Let’s look at some of our properly
 encoded UTF-8 example strings from Listing 8-14. First, this one:
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-14/src/main.rs:spanish}}
+    let hello = String::from("Hola");
 ```
 
 In this case, `len` will be `4`, which means the vector storing the string
@@ -269,7 +321,7 @@ UTF-8. The following line, however, may surprise you (note that this string
 begins with the capital Cyrillic letter _Ze_, not the number 3):
 
 ```rust
-{{#rustdoc_include ../listings/ch08-common-collections/listing-08-14/src/main.rs:russian}}
+    let hello = String::from("Здравствуйте");
 ```
 
 If you were asked how long the string is, you might say 12. In fact, Rust’s
@@ -367,7 +419,14 @@ If we were to try to slice only part of a character’s bytes with something lik
 index were accessed in a vector:
 
 ```console
-{{#include ../listings/ch08-common-collections/output-only-01-not-char-boundary/output.txt}}
+$ cargo run
+   Compiling collections v0.1.0 (file:///projects/collections)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.43s
+     Running `target/debug/collections`
+
+thread 'main' panicked at src/main.rs:4:19:
+byte index 1 is not a char boundary; it is inside 'З' (bytes 0..2) of `Здравствуйте`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
 You should use caution when creating string slices with ranges, because doing

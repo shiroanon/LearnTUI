@@ -16,7 +16,12 @@ struct that stores information about a user account.
 <Listing number="5-1" file-name="src/main.rs" caption="A `User` struct definition">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-01/src/main.rs:here}}
+struct User {
+    active: bool,
+    username: String,
+    email: String,
+    sign_in_count: u64,
+}
 ```
 
 </Listing>
@@ -34,7 +39,14 @@ example, we can declare a particular user as shown in Listing 5-2.
 <Listing number="5-2" file-name="src/main.rs" caption="Creating an instance of the `User` struct">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-02/src/main.rs:here}}
+fn main() {
+    let user1 = User {
+        active: true,
+        username: String::from("someusername123"),
+        email: String::from("someone@example.com"),
+        sign_in_count: 1,
+    };
+}
 ```
 
 </Listing>
@@ -48,7 +60,16 @@ field of a mutable `User` instance.
 <Listing number="5-3" file-name="src/main.rs" caption="Changing the value in the `email` field of a `User` instance">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-03/src/main.rs:here}}
+fn main() {
+    let mut user1 = User {
+        active: true,
+        username: String::from("someusername123"),
+        email: String::from("someone@example.com"),
+        sign_in_count: 1,
+    };
+
+    user1.email = String::from("anotheremail@example.com");
+}
 ```
 
 </Listing>
@@ -65,7 +86,14 @@ the given email and username. The `active` field gets the value `true`, and the
 <Listing number="5-4" file-name="src/main.rs" caption="A `build_user` function that takes an email and username and returns a `User` instance">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-04/src/main.rs:here}}
+fn build_user(email: String, username: String) -> User {
+    User {
+        active: true,
+        username: username,
+        email: email,
+        sign_in_count: 1,
+    }
+}
 ```
 
 </Listing>
@@ -89,7 +117,14 @@ repetition of `username` and `email`, as shown in Listing 5-5.
 <Listing number="5-5" file-name="src/main.rs" caption="A `build_user` function that uses field init shorthand because the `username` and `email` parameters have the same name as struct fields">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-05/src/main.rs:here}}
+fn build_user(email: String, username: String) -> User {
+    User {
+        active: true,
+        username,
+        email,
+        sign_in_count: 1,
+    }
+}
 ```
 
 </Listing>
@@ -117,7 +152,16 @@ otherwise use the same values from `user1` that we created in Listing 5-2.
 <Listing number="5-6" file-name="src/main.rs" caption="Creating a new `User` instance using all but one of the values from `user1`">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-06/src/main.rs:here}}
+fn main() {
+    // --snip--
+
+    let user2 = User {
+        active: user1.active,
+        username: user1.username,
+        email: String::from("another@example.com"),
+        sign_in_count: user1.sign_in_count,
+    };
+}
 ```
 
 </Listing>
@@ -129,7 +173,14 @@ explicitly set should have the same value as the fields in the given instance.
 <Listing number="5-7" file-name="src/main.rs" caption="Using struct update syntax to set a new `email` value for a `User` instance but to use the rest of the values from `user1`">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-07/src/main.rs:here}}
+fn main() {
+    // --snip--
+
+    let user2 = User {
+        email: String::from("another@example.com"),
+        ..user1
+    };
+}
 ```
 
 </Listing>
@@ -174,7 +225,13 @@ tuple structs named `Color` and `Point`:
 <Listing file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/no-listing-01-tuple-structs/src/main.rs}}
+struct Color(i32, i32, i32);
+struct Point(i32, i32, i32);
+
+fn main() {
+    let black = Color(0, 0, 0);
+    let origin = Point(0, 0, 0);
+}
 ```
 
 </Listing>
@@ -208,7 +265,11 @@ named `AlwaysEqual`:
 <Listing file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/no-listing-04-unit-like-structs/src/main.rs}}
+struct AlwaysEqual;
+
+fn main() {
+    let subject = AlwaysEqual;
+}
 ```
 
 </Listing>

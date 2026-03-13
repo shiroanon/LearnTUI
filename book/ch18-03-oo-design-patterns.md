@@ -58,7 +58,24 @@ because we haven’t implemented the `blog` crate.
 <Listing number="18-11" file-name="src/main.rs" caption="Code that demonstrates the desired behavior we want our `blog` crate to have">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch18-oop/listing-18-11/src/main.rs:all}}
+use blog::Post;
+
+// ANCHOR: here
+fn main() {
+    let mut post = Post::new();
+
+    post.add_text("I ate a salad for lunch today");
+    assert_eq!("", post.content());
+    // ANCHOR_END: here
+
+    post.request_review();
+    assert_eq!("", post.content());
+
+    post.approve();
+    assert_eq!("I ate a salad for lunch today", post.content());
+    // ANCHOR: here
+}
+// ANCHOR_END: here
 ```
 
 </Listing>
@@ -105,7 +122,25 @@ in a private field named `state` to hold the state object. You’ll see why the
 <Listing number="18-12" file-name="src/lib.rs" caption="Definition of a `Post` struct and a `new` function that creates a new `Post` instance, a `State` trait, and a `Draft` struct">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-12/src/lib.rs}}
+pub struct Post {
+    state: Option<Box<dyn State>>,
+    content: String,
+}
+
+impl Post {
+    pub fn new() -> Post {
+        Post {
+            state: Some(Box::new(Draft {})),
+            content: String::new(),
+        }
+    }
+}
+
+trait State {}
+
+struct Draft {}
+
+impl State for Draft {}
 ```
 
 </Listing>
@@ -136,7 +171,12 @@ Post` block.
 <Listing number="18-13" file-name="src/lib.rs" caption="Implementing the `add_text` method to add text to a post’s `content`">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-13/src/lib.rs:here}}
+impl Post {
+    // --snip--
+    pub fn add_text(&mut self, text: &str) {
+        self.content.push_str(text);
+    }
+}
 ```
 
 </Listing>
@@ -168,7 +208,12 @@ implementation.
 <Listing number="18-14" file-name="src/lib.rs" caption="Adding a placeholder implementation for the `content` method on `Post` that always returns an empty string slice">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-14/src/lib.rs:here}}
+impl Post {
+    // --snip--
+    pub fn content(&self) -> &str {
+        ""
+    }
+}
 ```
 
 </Listing>
@@ -189,7 +234,34 @@ change its state from `Draft` to `PendingReview`. Listing 18-15 shows this code.
 <Listing number="18-15" file-name="src/lib.rs" caption="Implementing `request_review` methods on `Post` and the `State` trait">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-15/src/lib.rs:here}}
+impl Post {
+    // --snip--
+    pub fn request_review(&mut self) {
+        if let Some(s) = self.state.take() {
+            self.state = Some(s.request_review())
+        }
+    }
+}
+
+trait State {
+    fn request_review(self: Box<Self>) -> Box<dyn State>;
+}
+
+struct Draft {}
+
+impl State for Draft {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        Box::new(PendingReview {})
+    }
+}
+
+struct PendingReview {}
+
+impl State for PendingReview {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+}
 ```
 
 </Listing>
@@ -250,7 +322,49 @@ state is approved, as shown in Listing 18-16.
 <Listing number="18-16" file-name="src/lib.rs" caption="Implementing the `approve` method on `Post` and the `State` trait">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-16/src/lib.rs:here}}
+impl Post {
+    // --snip--
+    pub fn approve(&mut self) {
+        if let Some(s) = self.state.take() {
+            self.state = Some(s.approve())
+        }
+    }
+}
+
+trait State {
+    fn request_review(self: Box<Self>) -> Box<dyn State>;
+    fn approve(self: Box<Self>) -> Box<dyn State>;
+}
+
+struct Draft {}
+
+impl State for Draft {
+    // --snip--
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+}
+
+struct PendingReview {}
+
+impl State for PendingReview {
+    // --snip--
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        Box::new(Published {})
+    }
+}
+
+struct Published {}
+
+impl State for Published {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+}
 ```
 
 </Listing>
@@ -274,7 +388,13 @@ as shown in Listing 18-17.
 <Listing number="18-17" file-name="src/lib.rs" caption="Updating the `content` method on `Post` to delegate to a `content` method on `State`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch18-oop/listing-18-17/src/lib.rs:here}}
+impl Post {
+    // --snip--
+    pub fn content(&self) -> &str {
+        self.state.as_ref().unwrap().content(self)
+    }
+    // --snip--
+}
 ```
 
 </Listing>
@@ -308,7 +428,22 @@ have, as shown in Listing 18-18.
 <Listing number="18-18" file-name="src/lib.rs" caption="Adding the `content` method to the `State` trait">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-18/src/lib.rs:here}}
+trait State {
+    // --snip--
+    fn content<'a>(&self, post: &'a Post) -> &'a str {
+        ""
+    }
+}
+
+// --snip--
+struct Published {}
+
+impl State for Published {
+    // --snip--
+    fn content<'a>(&self, post: &'a Post) -> &'a str {
+        &post.content
+    }
+}
 ```
 
 </Listing>
@@ -416,7 +551,12 @@ Let’s consider the first part of `main` in Listing 18-11:
 <Listing file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch18-oop/listing-18-11/src/main.rs:here}}
+fn main() {
+    let mut post = Post::new();
+
+    post.add_text("I ate a salad for lunch today");
+    assert_eq!("", post.content());
+}
 ```
 
 </Listing>
@@ -434,7 +574,31 @@ as well as methods on each.
 <Listing number="18-19" file-name="src/lib.rs" caption="A `Post` with a `content` method and a `DraftPost` without a `content` method">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-19/src/lib.rs}}
+pub struct Post {
+    content: String,
+}
+
+pub struct DraftPost {
+    content: String,
+}
+
+impl Post {
+    pub fn new() -> DraftPost {
+        DraftPost {
+            content: String::new(),
+        }
+    }
+
+    pub fn content(&self) -> &str {
+        &self.content
+    }
+}
+
+impl DraftPost {
+    pub fn add_text(&mut self, text: &str) {
+        self.content.push_str(text);
+    }
+}
 ```
 
 </Listing>
@@ -471,7 +635,26 @@ shown in Listing 18-20.
 <Listing number="18-20" file-name="src/lib.rs" caption="A `PendingReviewPost` that gets created by calling `request_review` on `DraftPost` and an `approve` method that turns a `PendingReviewPost` into a published `Post`">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-20/src/lib.rs:here}}
+impl DraftPost {
+    // --snip--
+    pub fn request_review(self) -> PendingReviewPost {
+        PendingReviewPost {
+            content: self.content,
+        }
+    }
+}
+
+pub struct PendingReviewPost {
+    content: String,
+}
+
+impl PendingReviewPost {
+    pub fn approve(self) -> Post {
+        Post {
+            content: self.content,
+        }
+    }
+}
 ```
 
 </Listing>
@@ -499,7 +682,19 @@ The updated code in `main` is shown in Listing 18-21.
 <Listing number="18-21" file-name="src/main.rs" caption="Modifications to `main` to use the new implementation of the blog post workflow">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch18-oop/listing-18-21/src/main.rs}}
+use blog::Post;
+
+fn main() {
+    let mut post = Post::new();
+
+    post.add_text("I ate a salad for lunch today");
+
+    let post = post.request_review();
+
+    let post = post.approve();
+
+    assert_eq!("I ate a salad for lunch today", post.content());
+}
 ```
 
 </Listing>

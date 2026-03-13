@@ -12,7 +12,15 @@ Here’s a program that contains an example function definition:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-16-functions/src/main.rs}}
+fn main() {
+    println!("Hello, world!");
+
+    another_function();
+}
+
+fn another_function() {
+    println!("Another function.");
+}
 ```
 
 We define a function in Rust by entering `fn` followed by a function name and a
@@ -31,7 +39,12 @@ further. Place the `another_function` example in _src/main.rs_ and run it. You
 should see the following output:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-16-functions/output.txt}}
+$ cargo run
+   Compiling functions v0.1.0 (file:///projects/functions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s
+     Running `target/debug/functions`
+Hello, world!
+Another function.
 ```
 
 The lines execute in the order in which they appear in the `main` function.
@@ -53,13 +66,23 @@ In this version of `another_function` we add a parameter:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-17-functions-with-parameters/src/main.rs}}
+fn main() {
+    another_function(5);
+}
+
+fn another_function(x: i32) {
+    println!("The value of x is: {x}");
+}
 ```
 
 Try running this program; you should get the following output:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-17-functions-with-parameters/output.txt}}
+$ cargo run
+   Compiling functions v0.1.0 (file:///projects/functions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.21s
+     Running `target/debug/functions`
+The value of x is: 5
 ```
 
 The declaration of `another_function` has one parameter named `x`. The type of
@@ -79,7 +102,13 @@ commas, like this:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-18-functions-with-multiple-parameters/src/main.rs}}
+fn main() {
+    print_labeled_measurement(5, 'h');
+}
+
+fn print_labeled_measurement(value: i32, unit_label: char) {
+    println!("The measurement is: {value}{unit_label}");
+}
 ```
 
 This example creates a function named `print_labeled_measurement` with two
@@ -92,7 +121,11 @@ project’s _src/main.rs_ file with the preceding example and run it using `carg
 run`:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-18-functions-with-multiple-parameters/output.txt}}
+$ cargo run
+   Compiling functions v0.1.0 (file:///projects/functions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running `target/debug/functions`
+The measurement is: 5h
 ```
 
 Because we called the function with `5` as the value for `value` and `'h'` as
@@ -121,7 +154,9 @@ assigning a value to it with the `let` keyword is a statement. In Listing 3-1,
 <Listing number="3-1" file-name="src/main.rs" caption="A `main` function declaration containing one statement">
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/listing-03-01/src/main.rs}}
+fn main() {
+    let y = 6;
+}
 ```
 
 </Listing>
@@ -136,13 +171,39 @@ to another variable, as the following code tries to do; you’ll get an error:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-19-statements-vs-expressions/src/main.rs}}
+fn main() {
+    let x = (let y = 6);
+}
 ```
 
 When you run this program, the error you’ll get looks like this:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-19-statements-vs-expressions/output.txt}}
+$ cargo run
+   Compiling functions v0.1.0 (file:///projects/functions)
+error: expected expression, found `let` statement
+ --> src/main.rs:2:14
+|
+2 |     let x = (let y = 6);
+| ^^^
+|
+  = note: only supported directly in conditions of `if` and `while` expressions
+
+warning: unnecessary parentheses around assigned value
+ --> src/main.rs:2:13
+|
+2 |     let x = (let y = 6);
+| ^         ^
+|
+  = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+|
+2 -     let x = (let y = 6);
+2 +     let x = let y = 6;
+|
+
+warning: `functions` (bin "functions") generated 1 warning
+error: could not compile `functions` (bin "functions") due to 1 previous error; 1 warning emitted
 ```
 
 The `let y = 6` statement does not return a value, so there isn’t anything for
@@ -162,7 +223,14 @@ curly brackets is an expression, for example:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-20-blocks-are-expressions/src/main.rs}}
+fn main() {
+    let y = {
+        let x = 3;
+        x + 1
+    };
+
+    println!("The value of y is: {y}");
+}
 ```
 
 This expression:
@@ -194,7 +262,15 @@ function that returns a value:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-21-function-return-values/src/main.rs}}
+fn five() -> i32 {
+    5
+}
+
+fn main() {
+    let x = five();
+
+    println!("The value of x is: {x}");
+}
 ```
 
 There are no function calls, macros, or even `let` statements in the `five`
@@ -203,7 +279,11 @@ Rust. Note that the function’s return type is specified too, as `-> i32`. Try
 running this code; the output should look like this:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-21-function-return-values/output.txt}}
+$ cargo run
+   Compiling functions v0.1.0 (file:///projects/functions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running `target/debug/functions`
+The value of x is: 5
 ```
 
 The `5` in `five` is the function’s return value, which is why the return type
@@ -225,7 +305,15 @@ Let’s look at another example:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-22-function-parameter-and-return/src/main.rs}}
+fn main() {
+    let x = plus_one(5);
+
+    println!("The value of x is: {x}");
+}
+
+fn plus_one(x: i32) -> i32 {
+    x + 1
+}
 ```
 
 Running this code will print `The value of x is: 6`. But what happens if we
@@ -235,13 +323,34 @@ an expression to a statement?
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch03-common-programming-concepts/no-listing-23-statements-dont-return-values/src/main.rs}}
+fn main() {
+    let x = plus_one(5);
+
+    println!("The value of x is: {x}");
+}
+
+fn plus_one(x: i32) -> i32 {
+    x + 1;
+}
 ```
 
 Compiling this code will produce an error, as follows:
 
 ```console
-{{#include ../listings/ch03-common-programming-concepts/no-listing-23-statements-dont-return-values/output.txt}}
+$ cargo run
+   Compiling functions v0.1.0 (file:///projects/functions)
+error[E0308]: mismatched types
+ --> src/main.rs:7:24
+|
+7 | fn plus_one(x: i32) -> i32 {
+| --------            ^^^ expected `i32`, found `()`
+|  |
+| implicitly returns `()` as its body has no tail or `return` expression
+8 |     x + 1;
+| - help: remove this semicolon to return this value
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `functions` (bin "functions") due to 1 previous error
 ```
 
 The main error message, `mismatched types`, reveals the core issue with this

@@ -9,7 +9,11 @@ variant.
 <Listing number="6-6" caption="A `match` that only cares about executing code when the value is `Some`">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-06/src/main.rs:here}}
+    let config_max = Some(3u8);
+    match config_max {
+        Some(max) => println!("The maximum is configured to be {max}"),
+        _ => (),
+    }
 ```
 
 </Listing>
@@ -24,7 +28,10 @@ Instead, we could write this in a shorter way using `if let`. The following
 code behaves the same as the `match` in Listing 6-6:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-12-if-let/src/main.rs:here}}
+    let config_max = Some(3u8);
+    if let Some(max) = config_max {
+        println!("The maximum is configured to be {max}");
+    }
 ```
 
 The syntax `if let` takes a pattern and an expression separated by an equal
@@ -53,13 +60,22 @@ announcing the state of the quarters, we could do that with a `match`
 expression, like this:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-13-count-and-announce-match/src/main.rs:here}}
+    let mut count = 0;
+    match coin {
+        Coin::Quarter(state) => println!("State quarter from {state:?}!"),
+        _ => count += 1,
+    }
 ```
 
 Or we could use an `if let` and `else` expression, like this:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/no-listing-14-count-and-announce-if-let-else/src/main.rs:here}}
+    let mut count = 0;
+    if let Coin::Quarter(state) = coin {
+        println!("State quarter from {state:?}!");
+    } else {
+        count += 1;
+    }
 ```
 
 ## Staying on the “Happy Path” with `let...else`
@@ -71,7 +87,15 @@ state on the quarter was, we might introduce a method on `UsState` to check the
 age of a state, like so:
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-07/src/main.rs:state}}
+impl UsState {
+    fn existed_in(&self, year: u16) -> bool {
+        match self {
+            UsState::Alabama => year >= 1819,
+            UsState::Alaska => year >= 1959,
+            // -- snip --
+        }
+    }
+}
 ```
 
 Then, we might use `if let` to match on the type of coin, introducing a `state`
@@ -80,7 +104,17 @@ variable within the body of the condition, as in Listing 6-7.
 <Listing number="6-7" caption="Checking whether a state existed in 1900 by using conditionals nested inside an `if let`">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-07/src/main.rs:describe}}
+fn describe_state_quarter(coin: Coin) -> Option<String> {
+    if let Coin::Quarter(state) = coin {
+        if state.existed_in(1900) {
+            Some(format!("{state:?} is pretty old, for America!"))
+        } else {
+            Some(format!("{state:?} is relatively new."))
+        }
+    } else {
+        None
+    }
+}
 ```
 
 </Listing>
@@ -95,7 +129,19 @@ something similar with a `match`, too.)
 <Listing number="6-8" caption="Using `if let` to produce a value or return early">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-08/src/main.rs:describe}}
+fn describe_state_quarter(coin: Coin) -> Option<String> {
+    let state = if let Coin::Quarter(state) = coin {
+        state
+    } else {
+        return None;
+    };
+
+    if state.existed_in(1900) {
+        Some(format!("{state:?} is pretty old, for America!"))
+    } else {
+        Some(format!("{state:?} is relatively new."))
+    }
+}
 ```
 
 </Listing>
@@ -116,7 +162,17 @@ place of `if let`.
 <Listing number="6-9" caption="Using `let...else` to clarify the flow through the function">
 
 ```rust
-{{#rustdoc_include ../listings/ch06-enums-and-pattern-matching/listing-06-09/src/main.rs:describe}}
+fn describe_state_quarter(coin: Coin) -> Option<String> {
+    let Coin::Quarter(state) = coin else {
+        return None;
+    };
+
+    if state.existed_in(1900) {
+        Some(format!("{state:?} is pretty old, for America!"))
+    } else {
+        Some(format!("{state:?} is relatively new."))
+    }
+}
 ```
 
 </Listing>

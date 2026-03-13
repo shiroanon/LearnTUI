@@ -31,7 +31,23 @@ of the word, indicated by a space. Let’s try that, as shown in Listing 4-7.
 <Listing number="4-7" file-name="src/main.rs" caption="The `first_word` function that returns a byte index value into the `String` parameter">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-07/src/main.rs:here}}
+fn first_word(s: &String) -> usize {
+    // ANCHOR: as_bytes
+    let bytes = s.as_bytes();
+    // ANCHOR_END: as_bytes
+
+    // ANCHOR: iter
+    for (i, &item) in bytes.iter().enumerate() {
+        // ANCHOR_END: iter
+        // ANCHOR: inside_for
+        if item == b' ' {
+            return i;
+        }
+    }
+
+    s.len()
+    // ANCHOR_END: inside_for
+}
 ```
 
 </Listing>
@@ -41,13 +57,13 @@ a value is a space, we’ll convert our `String` to an array of bytes using the
 `as_bytes` method.
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-07/src/main.rs:as_bytes}}
+    let bytes = s.as_bytes();
 ```
 
 Next, we create an iterator over the array of bytes using the `iter` method:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-07/src/main.rs:iter}}
+    for (i, &item) in bytes.iter().enumerate() {
 ```
 
 We’ll discuss iterators in more detail in [Chapter 13][ch13]<!-- ignore -->.
@@ -69,7 +85,12 @@ using the byte literal syntax. If we find a space, we return the position.
 Otherwise, we return the length of the string by using `s.len()`.
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-07/src/main.rs:inside_for}}
+        if item == b' ' {
+            return i;
+        }
+    }
+
+    s.len()
 ```
 
 We now have a way to find out the index of the end of the first word in the
@@ -82,7 +103,16 @@ uses the `first_word` function from Listing 4-7.
 <Listing number="4-8" file-name="src/main.rs" caption="Storing the result from calling the `first_word` function and then changing the `String` contents">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-08/src/main.rs:here}}
+fn main() {
+    let mut s = String::from("hello world");
+
+    let word = first_word(&s); // word will get the value 5
+
+    s.clear(); // this empties the String, making it equal to ""
+
+    // word still has the value 5 here, but s no longer has any content that we
+    // could meaningfully use with the value 5, so word is now totally invalid!
+}
 ```
 
 </Listing>
@@ -114,7 +144,10 @@ A _string slice_ is a reference to a contiguous sequence of the elements of a
 `String`, and it looks like this:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-17-slice/src/main.rs:here}}
+    let s = String::from("hello world");
+
+    let hello = &s[0..5];
+    let world = &s[6..11];
 ```
 
 Rather than a reference to the entire `String`, `hello` is a reference to a
@@ -183,7 +216,17 @@ slice. The type that signifies “string slice” is written as `&str`:
 <Listing file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-18-first-word-slice/src/main.rs:here}}
+fn first_word(s: &String) -> &str {
+    let bytes = s.as_bytes();
+
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+
+    &s[..]
+}
 ```
 
 </Listing>
@@ -216,7 +259,15 @@ will throw a compile-time error:
 <Listing file-name="src/main.rs">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-19-slice-error/src/main.rs:here}}
+fn main() {
+    let mut s = String::from("hello world");
+
+    let word = first_word(&s);
+
+    s.clear(); // error!
+
+    println!("the first word is: {word}");
+}
 ```
 
 </Listing>
@@ -224,7 +275,22 @@ will throw a compile-time error:
 Here’s the compiler error:
 
 ```console
-{{#include ../listings/ch04-understanding-ownership/no-listing-19-slice-error/output.txt}}
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immutable
+  --> src/main.rs:18:5
+|
+16 |     let word = first_word(&s);
+| -- immutable borrow occurs here
+17 |
+18 |     s.clear(); // error!
+| ^^^^^^^^^ mutable borrow occurs here
+19 |
+20 |     println!("the first word is: {word}");
+| ---- immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
 ```
 
 Recall from the borrowing rules that if we have an immutable reference to
@@ -269,7 +335,7 @@ and `&str` values.
 <Listing number="4-9" caption="Improving the `first_word` function by using a string slice for the type of the `s` parameter">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-09/src/main.rs:here}}
+fn first_word(s: &str) -> &str {
 ```
 
 </Listing>
@@ -286,7 +352,27 @@ makes our API more general and useful without losing any functionality:
 <Listing file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-09/src/main.rs:usage}}
+fn main() {
+    let my_string = String::from("hello world");
+
+    // `first_word` works on slices of `String`s, whether partial or whole.
+    let word = first_word(&my_string[0..6]);
+    let word = first_word(&my_string[..]);
+    // `first_word` also works on references to `String`s, which are equivalent
+    // to whole slices of `String`s.
+    let word = first_word(&my_string);
+
+    let my_string_literal = "hello world";
+
+    // `first_word` works on slices of string literals, whether partial or
+    // whole.
+    let word = first_word(&my_string_literal[0..6]);
+    let word = first_word(&my_string_literal[..]);
+
+    // Because string literals *are* string slices already,
+    // this works too, without the slice syntax!
+    let word = first_word(my_string_literal);
+}
 ```
 
 </Listing>

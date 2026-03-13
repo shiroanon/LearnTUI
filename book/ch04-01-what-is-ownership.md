@@ -117,7 +117,11 @@ program with comments annotating where the variable `s` would be valid.
 <Listing number="4-1" caption="A variable and the scope in which it is valid">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-01/src/main.rs:here}}
+    {                      // s is not valid here, since it's not yet declared
+        let s = "hello";   // s is valid from this point forward
+
+        // do stuff with s
+    }                      // this scope is now over, and s is no longer valid
 ```
 
 </Listing>
@@ -171,7 +175,11 @@ Tree”][paths-module-tree]<!-- ignore --> in Chapter 7.
 This kind of string _can_ be mutated:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-01-can-mutate-string/src/main.rs:here}}
+    let mut s = String::from("hello");
+
+    s.push_str(", world!"); // push_str() appends a literal to a String
+
+    println!("{s}"); // this will print `hello, world!`
 ```
 
 So, what’s the difference here? Why can `String` be mutated but literals
@@ -213,7 +221,12 @@ variable that owns it goes out of scope. Here’s a version of our scope example
 from Listing 4-1 using a `String` instead of a string literal:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-02-string-scope/src/main.rs:here}}
+    {
+        let s = String::from("hello"); // s is valid from this point forward
+
+        // do stuff with s
+    }                                  // this scope is now over, and s is no
+                                       // longer valid
 ```
 
 There is a natural point at which we can return the memory our `String` needs
@@ -245,7 +258,8 @@ Listing 4-2 shows an example using an integer.
 <Listing number="4-2" caption="Assigning the integer value of variable `x` to `y`">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-02/src/main.rs:here}}
+    let x = 5;
+    let y = x;
 ```
 
 </Listing>
@@ -259,7 +273,8 @@ onto the stack.
 Now let’s look at the `String` version:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-03-string-move/src/main.rs:here}}
+    let s1 = String::from("hello");
+    let s2 = s1;
 ```
 
 This looks very similar, so we might assume that the way it works would be the
@@ -325,14 +340,37 @@ out of scope. Check out what happens when you try to use `s1` after `s2` is
 created; it won’t work:
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-04-cant-use-after-move/src/main.rs:here}}
+    let s1 = String::from("hello");
+    let s2 = s1;
+
+    println!("{s1}, world!");
 ```
 
 You’ll get an error like this because Rust prevents you from using the
 invalidated reference:
 
 ```console
-{{#include ../listings/ch04-understanding-ownership/no-listing-04-cant-use-after-move/output.txt}}
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0382]: borrow of moved value: `s1`
+ --> src/main.rs:5:16
+|
+2 |     let s1 = String::from("hello");
+| -- move occurs because `s1` has type `String`, which does not implement the `Copy` trait
+3 |     let s2 = s1;
+| -- value moved here
+4 |
+5 |     println!("{s1}, world!");
+| ^^ value borrowed here after move
+|
+  = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider cloning the value if the performance cost is acceptable
+|
+3 |     let s2 = s1.clone();
+| ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
 ```
 
 If you’ve heard the terms _shallow copy_ and _deep copy_ while working with
@@ -366,7 +404,10 @@ new value to an existing variable, Rust will call `drop` and free the original
 value’s memory immediately. Consider this code, for example:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-04b-replacement-drop/src/main.rs:here}}
+    let mut s = String::from("hello");
+    s = String::from("ahoy");
+
+    println!("{s}, world!");
 ```
 
 We initially declare a variable `s` and bind it to a `String` with the value
@@ -400,7 +441,10 @@ programming languages, you’ve probably seen them before.
 Here’s an example of the `clone` method in action:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-05-clone/src/main.rs:here}}
+    let s1 = String::from("hello");
+    let s2 = s1.clone();
+
+    println!("s1 = {s1}, s2 = {s2}");
 ```
 
 This works just fine and explicitly produces the behavior shown in Figure 4-3,
@@ -416,7 +460,10 @@ There’s another wrinkle we haven’t talked about yet. This code using
 integers—part of which was shown in Listing 4-2—works and is valid:
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/no-listing-06-copy/src/main.rs:here}}
+    let x = 5;
+    let y = x;
+
+    println!("x = {x}, y = {y}");
 ```
 
 But this code seems to contradict what we just learned: We don’t have a call to
@@ -465,7 +512,29 @@ showing where variables go into and out of scope.
 <Listing number="4-3" file-name="src/main.rs" caption="Functions with ownership and scope annotated">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-03/src/main.rs}}
+fn main() {
+    let s = String::from("hello");  // s comes into scope
+
+    takes_ownership(s);             // s's value moves into the function...
+                                    // ... and so is no longer valid here
+
+    let x = 5;                      // x comes into scope
+
+    makes_copy(x);                  // Because i32 implements the Copy trait,
+                                    // x does NOT move into the function,
+                                    // so it's okay to use x afterward.
+
+} // Here, x goes out of scope, then s. However, because s's value was moved,
+  // nothing special happens.
+
+fn takes_ownership(some_string: String) { // some_string comes into scope
+    println!("{some_string}");
+} // Here, some_string goes out of scope and `drop` is called. The backing
+  // memory is freed.
+
+fn makes_copy(some_integer: i32) { // some_integer comes into scope
+    println!("{some_integer}");
+} // Here, some_integer goes out of scope. Nothing special happens.
 ```
 
 </Listing>
@@ -484,7 +553,36 @@ function that returns some value, with similar annotations as those in Listing
 <Listing number="4-4" file-name="src/main.rs" caption="Transferring ownership of return values">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-04/src/main.rs}}
+fn main() {
+    let s1 = gives_ownership();        // gives_ownership moves its return
+                                       // value into s1
+
+    let s2 = String::from("hello");    // s2 comes into scope
+
+    let s3 = takes_and_gives_back(s2); // s2 is moved into
+                                       // takes_and_gives_back, which also
+                                       // moves its return value into s3
+} // Here, s3 goes out of scope and is dropped. s2 was moved, so nothing
+  // happens. s1 goes out of scope and is dropped.
+
+fn gives_ownership() -> String {       // gives_ownership will move its
+                                       // return value into the function
+                                       // that calls it
+
+    let some_string = String::from("yours"); // some_string comes into scope
+
+    some_string                        // some_string is returned and
+                                       // moves out to the calling
+                                       // function
+}
+
+// This function takes a String and returns a String.
+fn takes_and_gives_back(a_string: String) -> String {
+    // a_string comes into
+    // scope
+
+    a_string  // a_string is returned and moves out to the calling function
+}
 ```
 
 </Listing>
@@ -505,7 +603,19 @@ Rust does let us return multiple values using a tuple, as shown in Listing 4-5.
 <Listing number="4-5" file-name="src/main.rs" caption="Returning ownership of parameters">
 
 ```rust
-{{#rustdoc_include ../listings/ch04-understanding-ownership/listing-04-05/src/main.rs}}
+fn main() {
+    let s1 = String::from("hello");
+
+    let (s2, len) = calculate_length(s1);
+
+    println!("The length of '{s2}' is {len}.");
+}
+
+fn calculate_length(s: String) -> (String, usize) {
+    let length = s.len(); // len() returns the length of a String
+
+    (s, length)
+}
 ```
 
 </Listing>

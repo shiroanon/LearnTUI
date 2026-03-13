@@ -16,7 +16,24 @@ in Listing 12-23.
 <Listing number="13-17" file-name="src/main.rs" caption="Reproduction of the `Config::build` function from Listing 12-23">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch13-functional-features/listing-12-23-reproduced/src/main.rs:ch13}}
+impl Config {
+    fn build(args: &[String]) -> Result<Config, &'static str> {
+        if args.len() < 3 {
+            return Err("not enough arguments");
+        }
+
+        let query = args[1].clone();
+        let file_path = args[2].clone();
+
+        let ignore_case = env::var("IGNORE_CASE").is_ok();
+
+        Ok(Config {
+            query,
+            file_path,
+            ignore_case,
+        })
+    }
+}
 ```
 
 </Listing>
@@ -47,7 +64,16 @@ Open your I/O project’s _src/main.rs_ file, which should look like this:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch13-functional-features/listing-12-24-reproduced/src/main.rs:ch13}}
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = Config::build(&args).unwrap_or_else(|err| {
+        eprintln!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
+
+    // --snip--
+}
 ```
 
 We’ll first change the start of the `main` function that we had in Listing
@@ -57,7 +83,14 @@ won’t compile until we update `Config::build` as well.
 <Listing number="13-18" file-name="src/main.rs" caption="Passing the return value of `env::args` to `Config::build`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-18/src/main.rs:here}}
+fn main() {
+    let config = Config::build(env::args()).unwrap_or_else(|err| {
+        eprintln!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
+
+    // --snip--
+}
 ```
 
 </Listing>
@@ -74,7 +107,11 @@ compile, because we need to update the function body.
 <Listing number="13-19" file-name="src/main.rs" caption="Updating the signature of `Config::build` to expect an iterator">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-19/src/main.rs:here}}
+impl Config {
+    fn build(
+        mut args: impl Iterator<Item = String>,
+    ) -> Result<Config, &'static str> {
+        // --snip--
 ```
 
 </Listing>
@@ -107,7 +144,31 @@ updates the code from Listing 12-23 to use the `next` method.
 <Listing number="13-20" file-name="src/main.rs" caption="Changing the body of `Config::build` to use iterator methods">
 
 ```rust,ignore,noplayground
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-20/src/main.rs:here}}
+impl Config {
+    fn build(
+        mut args: impl Iterator<Item = String>,
+    ) -> Result<Config, &'static str> {
+        args.next();
+
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query string"),
+        };
+
+        let file_path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a file path"),
+        };
+
+        let ignore_case = env::var("IGNORE_CASE").is_ok();
+
+        Ok(Config {
+            query,
+            file_path,
+            ignore_case,
+        })
+    }
+}
 ```
 
 </Listing>
@@ -132,7 +193,17 @@ project, which is reproduced here in Listing 13-21 as it was in Listing 12-19.
 <Listing number="13-21" file-name="src/lib.rs" caption="The implementation of the `search` function from Listing 12-19">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-19/src/lib.rs:ch13}}
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    let mut results = Vec::new();
+
+    for line in contents.lines() {
+        if line.contains(query) {
+            results.push(line);
+        }
+    }
+
+    results
+}
 ```
 
 </Listing>
@@ -147,7 +218,12 @@ concurrent access to the `results` vector. Listing 13-22 shows this change.
 <Listing number="13-22" file-name="src/lib.rs" caption="Using iterator adapter methods in the implementation of the `search` function">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-22/src/lib.rs:here}}
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    contents
+        .lines()
+        .filter(|line| line.contains(query))
+        .collect()
+}
 ```
 
 </Listing>

@@ -29,7 +29,15 @@ quite work yet.
 <Listing number="21-22" file-name="src/lib.rs" caption="Joining each thread when the thread pool goes out of scope">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-22/src/lib.rs:here}}
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            worker.thread.join().unwrap();
+        }
+    }
+}
 ```
 
 </Listing>
@@ -44,7 +52,21 @@ panic and go into an ungraceful shutdown.
 Here is the error we get when we compile this code:
 
 ```console
-{{#include ../listings/ch21-web-server/listing-21-22/output.txt}}
+$ cargo check
+    Checking hello v0.1.0 (file:///projects/hello)
+error[E0507]: cannot move out of `worker.thread` which is behind a mutable reference
+  --> src/lib.rs:52:13
+|
+52 |             worker.thread.join().unwrap();
+| ^^^^^^^^^^^^^ ------ `worker.thread` moved due to this method call
+|  |
+| move occurs because `worker.thread` has type `JoinHandle<()>`, which does not implement the `Copy` trait
+|
+note: `JoinHandle::<T>::join` takes ownership of the receiver `self`, which moves `worker.thread`
+  --> /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/std/src/thread/mod.rs:1921:17
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `hello` (lib) due to 1 previous error
 ```
 
 The error tells us we can’t call `join` because we only have a mutable borrow
@@ -76,7 +98,15 @@ So, we need to update the `ThreadPool` `drop` implementation like this:
 <Listing file-name="src/lib.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-04-update-drop-definition/src/lib.rs:here}}
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for worker in self.workers.drain(..) {
+            println!("Shutting down worker {}", worker.id);
+
+            worker.thread.join().unwrap();
+        }
+    }
+}
 ```
 
 </Listing>
@@ -109,7 +139,42 @@ here we _do_ need to use an `Option` to be able to move `sender` out of
 <Listing number="21-23" file-name="src/lib.rs" caption="Explicitly dropping `sender` before joining the `Worker` threads">
 
 ```rust,noplayground,not_desired_behavior
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-23/src/lib.rs:here}}
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: Option<mpsc::Sender<Job>>,
+}
+// --snip--
+impl ThreadPool {
+    pub fn new(size: usize) -> ThreadPool {
+        // --snip--
+
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
+    }
+
+    pub fn execute<F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let job = Box::new(f);
+
+        self.sender.as_ref().unwrap().send(job).unwrap();
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        drop(self.sender.take());
+
+        for worker in self.workers.drain(..) {
+            println!("Shutting down worker {}", worker.id);
+
+            worker.thread.join().unwrap();
+        }
+    }
+}
 ```
 
 </Listing>
@@ -123,7 +188,29 @@ will finish when the `ThreadPool` `drop` implementation calls `join` on them.
 <Listing number="21-24" file-name="src/lib.rs" caption="Explicitly breaking out of the loop when `recv` returns an error">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-24/src/lib.rs:here}}
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            loop {
+                let message = receiver.lock().unwrap().recv();
+
+                match message {
+                    Ok(job) => {
+                        println!("Worker {id} got a job; executing.");
+
+                        job();
+                    }
+                    Err(_) => {
+                        println!("Worker {id} disconnected; shutting down.");
+                        break;
+                    }
+                }
+            }
+        });
+
+        Worker { id, thread }
+    }
+}
 ```
 
 </Listing>
@@ -134,7 +221,20 @@ before gracefully shutting down the server, as shown in Listing 21-25.
 <Listing number="21-25" file-name="src/main.rs" caption="Shutting down the server after serving two requests by exiting the loop">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-25/src/main.rs:here}}
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let pool = ThreadPool::new(4);
+
+    for stream in listener.incoming().take(2) {
+        let stream = stream.unwrap();
+
+        pool.execute(|| {
+            handle_connection(stream);
+        });
+    }
+
+    println!("Shutting down.");
+}
 ```
 
 </Listing>
@@ -205,7 +305,51 @@ Here’s the full code for reference:
 <Listing file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-07-final-code/src/main.rs}}
+use hello::ThreadPool;
+use std::{
+    fs,
+    io::{BufReader, prelude::*},
+    net::{TcpListener, TcpStream},
+    thread,
+    time::Duration,
+};
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let pool = ThreadPool::new(4);
+
+    for stream in listener.incoming().take(2) {
+        let stream = stream.unwrap();
+
+        pool.execute(|| {
+            handle_connection(stream);
+        });
+    }
+
+    println!("Shutting down.");
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&stream);
+    let request_line = buf_reader.lines().next().unwrap().unwrap();
+
+    let (status_line, filename) = match &request_line[..] {
+        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(5));
+            ("HTTP/1.1 200 OK", "hello.html")
+        }
+        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
+    };
+
+    let contents = fs::read_to_string(filename).unwrap();
+    let length = contents.len();
+
+    let response =
+        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+    stream.write_all(response.as_bytes()).unwrap();
+}
 ```
 
 </Listing>
@@ -213,7 +357,100 @@ Here’s the full code for reference:
 <Listing file-name="src/lib.rs">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-07-final-code/src/lib.rs}}
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    thread,
+};
+
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: Option<mpsc::Sender<Job>>,
+}
+
+type Job = Box<dyn FnOnce() + Send + 'static>;
+
+impl ThreadPool {
+    /// Create a new ThreadPool.
+    ///
+    /// The size is the number of threads in the pool.
+    ///
+    /// # Panics
+    ///
+    /// The `new` function will panic if the size is zero.
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let (sender, receiver) = mpsc::channel();
+
+        let receiver = Arc::new(Mutex::new(receiver));
+
+        let mut workers = Vec::with_capacity(size);
+
+        for id in 0..size {
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
+        }
+
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
+    }
+
+    pub fn execute<F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let job = Box::new(f);
+
+        self.sender.as_ref().unwrap().send(job).unwrap();
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        drop(self.sender.take());
+
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+}
+
+struct Worker {
+    id: usize,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            loop {
+                let message = receiver.lock().unwrap().recv();
+
+                match message {
+                    Ok(job) => {
+                        println!("Worker {id} got a job; executing.");
+
+                        job();
+                    }
+                    Err(_) => {
+                        println!("Worker {id} disconnected; shutting down.");
+                        break;
+                    }
+                }
+            }
+        });
+
+        Worker {
+            id,
+            thread: Some(thread),
+        }
+    }
+}
 ```
 
 </Listing>

@@ -14,7 +14,9 @@ useful.
 <Listing number="13-10" file-name="src/main.rs" caption="Creating an iterator">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-10/src/main.rs:here}}
+    let v1 = vec![1, 2, 3];
+
+    let v1_iter = v1.iter();
 ```
 
 </Listing>
@@ -33,7 +35,13 @@ iteration of the loop, which prints out each value.
 <Listing number="13-11" file-name="src/main.rs" caption="Using an iterator in a `for` loop">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-11/src/main.rs:here}}
+    let v1 = vec![1, 2, 3];
+
+    let v1_iter = v1.iter();
+
+    for val in v1_iter {
+        println!("Got: {val}");
+    }
 ```
 
 </Listing>
@@ -83,7 +91,17 @@ from the vector.
 <Listing number="13-12" file-name="src/lib.rs" caption="Calling the `next` method on an iterator">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-12/src/lib.rs:here}}
+    #[test]
+    fn iterator_demonstration() {
+        let v1 = vec![1, 2, 3];
+
+        let mut v1_iter = v1.iter();
+
+        assert_eq!(v1_iter.next(), Some(&1));
+        assert_eq!(v1_iter.next(), Some(&2));
+        assert_eq!(v1_iter.next(), Some(&3));
+        assert_eq!(v1_iter.next(), None);
+    }
 ```
 
 </Listing>
@@ -121,7 +139,16 @@ test illustrating a use of the `sum` method.
 <Listing number="13-13" file-name="src/lib.rs" caption="Calling the `sum` method to get the total of all items in the iterator">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-13/src/lib.rs:here}}
+    #[test]
+    fn iterator_sum() {
+        let v1 = vec![1, 2, 3];
+
+        let v1_iter = v1.iter();
+
+        let total: i32 = v1_iter.sum();
+
+        assert_eq!(total, 6);
+    }
 ```
 
 </Listing>
@@ -144,7 +171,9 @@ incremented by 1.
 <Listing number="13-14" file-name="src/main.rs" caption="Calling the iterator adapter `map` to create a new iterator">
 
 ```rust,not_desired_behavior
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-14/src/main.rs:here}}
+    let v1: Vec<i32> = vec![1, 2, 3];
+
+    v1.iter().map(|x| x + 1);
 ```
 
 </Listing>
@@ -152,7 +181,24 @@ incremented by 1.
 However, this code produces a warning:
 
 ```console
-{{#include ../listings/ch13-functional-features/listing-13-14/output.txt}}
+$ cargo run
+   Compiling iterators v0.1.0 (file:///projects/iterators)
+warning: unused `Map` that must be used
+ --> src/main.rs:4:5
+|
+4 |     v1.iter().map(|x| x + 1);
+| ^^^^^^^^^^^^^^^^^^^^^^^^
+|
+  = note: iterators are lazy and do nothing unless consumed
+  = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+|
+4 |     let _ = v1.iter().map(|x| x + 1);
+| +++++++
+
+warning: `iterators` (bin "iterators") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running `target/debug/iterators`
 ```
 
 The code in Listing 13-14 doesn’t do anything; the closure we’ve specified
@@ -170,7 +216,11 @@ containing each item from the original vector, incremented by 1.
 <Listing number="13-15" file-name="src/main.rs" caption="Calling the `map` method to create a new iterator, and then calling the `collect` method to consume the new iterator and create a vector">
 
 ```rust
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-15/src/main.rs:here}}
+    let v1: Vec<i32> = vec![1, 2, 3];
+
+    let v2: Vec<_> = v1.iter().map(|x| x + 1).collect();
+
+    assert_eq!(v2, vec![2, 3, 4]);
 ```
 
 </Listing>
@@ -206,7 +256,54 @@ instances. It will return only shoes that are the specified size.
 <Listing number="13-16" file-name="src/lib.rs" caption="Using the `filter` method with a closure that captures `shoe_size`">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch13-functional-features/listing-13-16/src/lib.rs}}
+#[derive(PartialEq, Debug)]
+struct Shoe {
+    size: u32,
+    style: String,
+}
+
+fn shoes_in_size(shoes: Vec<Shoe>, shoe_size: u32) -> Vec<Shoe> {
+    shoes.into_iter().filter(|s| s.size == shoe_size).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filters_by_size() {
+        let shoes = vec![
+            Shoe {
+                size: 10,
+                style: String::from("sneaker"),
+            },
+            Shoe {
+                size: 13,
+                style: String::from("sandal"),
+            },
+            Shoe {
+                size: 10,
+                style: String::from("boot"),
+            },
+        ];
+
+        let in_my_size = shoes_in_size(shoes, 10);
+
+        assert_eq!(
+            in_my_size,
+            vec![
+                Shoe {
+                    size: 10,
+                    style: String::from("sneaker")
+                },
+                Shoe {
+                    size: 10,
+                    style: String::from("boot")
+                },
+            ]
+        );
+    }
+}
 ```
 
 </Listing>

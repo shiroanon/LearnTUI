@@ -62,7 +62,19 @@ instead.
 <Listing number="12-24" file-name="src/main.rs" caption="Writing error messages to standard error instead of standard output using `eprintln!`">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-24/src/main.rs:here}}
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = Config::build(&args).unwrap_or_else(|err| {
+        eprintln!("Problem parsing arguments: {err}");
+        process::exit(1);
+    });
+
+    if let Err(e) = run(config) {
+        eprintln!("Application error: {e}");
+        process::exit(1);
+    }
+}
 ```
 
 </Listing>

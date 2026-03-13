@@ -25,7 +25,19 @@ results together. The `main` function calls `do_twice` with the arguments
 <Listing number="20-28" file-name="src/main.rs" caption="Using the `fn` type to accept a function pointer as an argument">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-28/src/main.rs}}
+fn add_one(x: i32) -> i32 {
+    x + 1
+}
+
+fn do_twice(f: fn(i32) -> i32, arg: i32) -> i32 {
+    f(arg) + f(arg)
+}
+
+fn main() {
+    let answer = do_twice(add_one, 5);
+
+    println!("The answer is: {answer}");
+}
 ```
 
 </Listing>
@@ -57,7 +69,9 @@ numbers into a vector of strings, we could use a closure, as in Listing 20-29.
 <Listing number="20-29" caption="Using a closure with the `map` method to convert numbers to strings">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-29/src/main.rs:here}}
+    let list_of_numbers = vec![1, 2, 3];
+    let list_of_strings: Vec<String> =
+        list_of_numbers.iter().map(|i| i.to_string()).collect();
 ```
 
 </Listing>
@@ -68,7 +82,9 @@ Listing 20-30 shows what this would look like.
 <Listing number="20-30" caption="Using the `String::to_string` function with the `map` method to convert numbers to strings">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-30/src/main.rs:here}}
+    let list_of_numbers = vec![1, 2, 3];
+    let list_of_strings: Vec<String> =
+        list_of_numbers.iter().map(ToString::to_string).collect();
 ```
 
 </Listing>
@@ -90,7 +106,12 @@ functions as arguments for methods that take closures, as seen in Listing 20-31.
 <Listing number="20-31" caption="Using an enum initializer with the `map` method to create a `Status` instance from numbers">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-31/src/main.rs:here}}
+    enum Status {
+        Value(u32),
+        Stop,
+    }
+
+    let list_of_statuses: Vec<Status> = (0u32..20).map(Status::Value).collect();
 ```
 
 </Listing>
@@ -117,7 +138,9 @@ For example, the code in Listing 20-32 will compile just fine.
 <Listing number="20-32" caption="Returning a closure from a function using the `impl Trait` syntax">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-32/src/lib.rs}}
+fn returns_closure() -> impl Fn(i32) -> i32 {
+| x | x + 1
+}
 ```
 
 </Listing>
@@ -132,7 +155,21 @@ in Listing 20-33.
 <Listing file-name="src/main.rs" number="20-33" caption="Creating a `Vec<T>` of closures defined by functions that return `impl Fn` types">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-33/src/main.rs}}
+fn main() {
+    let handlers = vec![returns_closure(), returns_initialized_closure(123)];
+    for handler in handlers {
+        let output = handler(5);
+        println!("{output}");
+    }
+}
+
+fn returns_closure() -> impl Fn(i32) -> i32 {
+| x | x + 1
+}
+
+fn returns_initialized_closure(init: i32) -> impl Fn(i32) -> i32 {
+    move |x| x + init
+}
 ```
 
 </Listing>
@@ -143,7 +180,26 @@ return are different, even though they implement the same type. If we try to
 compile this, Rust lets us know that it won’t work:
 
 ```text
-{{#include ../listings/ch20-advanced-features/listing-20-33/output.txt}}
+$ cargo build
+   Compiling functions-example v0.1.0 (file:///projects/functions-example)
+error[E0308]: mismatched types
+  --> src/main.rs:2:44
+|
+ 2 |     let handlers = vec![returns_closure(), returns_initialized_closure(123)];
+| ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected opaque type, found a different opaque type
+...
+ 9 | fn returns_closure() -> impl Fn(i32) -> i32 {
+| ------------------- the expected opaque type
+...
+13 | fn returns_initialized_closure(init: i32) -> impl Fn(i32) -> i32 {
+| ------------------- the found opaque type
+|
+   = note: expected opaque type `impl Fn(i32) -> i32`
+              found opaque type `impl Fn(i32) -> i32`
+   = note: distinct uses of `impl Trait` result in different opaque types
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `functions-example` (bin "functions-example") due to 1 previous error
 ```
 
 The error message tells us that whenever we return an `impl Trait`, Rust
@@ -160,7 +216,13 @@ use a trait object, as in Listing 20-34.
 <Listing number="20-34" caption="Creating a `Vec<T>` of closures defined by functions that return `Box<dyn Fn>` so that they have the same type">
 
 ```rust
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-34/src/main.rs:here}}
+fn returns_closure() -> Box<dyn Fn(i32) -> i32> {
+    Box::new(|x| x + 1)
+}
+
+fn returns_initialized_closure(init: i32) -> Box<dyn Fn(i32) -> i32> {
+    Box::new(move |x| x + init)
+}
 ```
 
 </Listing>

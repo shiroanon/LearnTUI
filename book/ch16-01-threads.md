@@ -43,7 +43,22 @@ thread and other text from a new thread.
 <Listing number="16-1" file-name="src/main.rs" caption="Creating a new thread to print one thing while the main thread prints something else">
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-01/src/main.rs}}
+use std::thread;
+use std::time::Duration;
+
+fn main() {
+    thread::spawn(|| {
+        for i in 1..10 {
+            println!("hi number {i} from the spawned thread!");
+            thread::sleep(Duration::from_millis(1));
+        }
+    });
+
+    for i in 1..5 {
+        println!("hi number {i} from the main thread!");
+        thread::sleep(Duration::from_millis(1));
+    }
+}
 ```
 
 </Listing>
@@ -103,7 +118,24 @@ spawned thread finishes before `main` exits.
 <Listing number="16-2" file-name="src/main.rs" caption="Saving a `JoinHandle<T>` from `thread::spawn` to guarantee the thread is run to completion">
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-02/src/main.rs}}
+use std::thread;
+use std::time::Duration;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        for i in 1..10 {
+            println!("hi number {i} from the spawned thread!");
+            thread::sleep(Duration::from_millis(1));
+        }
+    });
+
+    for i in 1..5 {
+        println!("hi number {i} from the main thread!");
+        thread::sleep(Duration::from_millis(1));
+    }
+
+    handle.join().unwrap();
+}
 ```
 
 </Listing>
@@ -143,7 +175,24 @@ But let’s see what happens when we instead move `handle.join()` before the
 <Listing file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/no-listing-01-join-too-early/src/main.rs}}
+use std::thread;
+use std::time::Duration;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        for i in 1..10 {
+            println!("hi number {i} from the spawned thread!");
+            thread::sleep(Duration::from_millis(1));
+        }
+    });
+
+    handle.join().unwrap();
+
+    for i in 1..5 {
+        println!("hi number {i} from the main thread!");
+        thread::sleep(Duration::from_millis(1));
+    }
+}
 ```
 
 </Listing>
@@ -193,7 +242,17 @@ thread. However, this won’t work yet, as you’ll see in a moment.
 <Listing number="16-3" file-name="src/main.rs" caption="Attempting to use a vector created by the main thread in another thread">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-03/src/main.rs}}
+use std::thread;
+
+fn main() {
+    let v = vec![1, 2, 3];
+
+    let handle = thread::spawn(|| {
+        println!("Here's a vector: {v:?}");
+    });
+
+    handle.join().unwrap();
+}
 ```
 
 </Listing>
@@ -204,7 +263,31 @@ should be able to access `v` inside that new thread. But when we compile this
 example, we get the following error:
 
 ```console
-{{#include ../listings/ch16-fearless-concurrency/listing-16-03/output.txt}}
+$ cargo run
+   Compiling threads v0.1.0 (file:///projects/threads)
+error[E0373]: closure may outlive the current function, but it borrows `v`, which is owned by the current function
+ --> src/main.rs:6:32
+|
+6 |     let handle = thread::spawn(|| {
+| ^^ may outlive borrowed value `v`
+7 |         println!("Here's a vector: {v:?}");
+| - `v` is borrowed here
+|
+note: function requires argument type to outlive `'static`
+ --> src/main.rs:6:18
+|
+6 |       let handle = thread::spawn(|| {
+| __________________^
+7 | |         println!("Here's a vector: {v:?}");
+8 | |     });
+|  | ______^
+help: to force the closure to take ownership of `v` (and any other referenced variables), use the `move` keyword
+|
+6 |     let handle = thread::spawn(move || {
+| ++++
+
+For more information about this error, try `rustc --explain E0373`.
+error: could not compile `threads` (bin "threads") due to 1 previous error
 ```
 
 Rust _infers_ how to capture `v`, and because `println!` only needs a reference
@@ -218,7 +301,19 @@ that won’t be valid.
 <Listing number="16-4" file-name="src/main.rs" caption="A thread with a closure that attempts to capture a reference to `v` from a main thread that drops `v`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-04/src/main.rs}}
+use std::thread;
+
+fn main() {
+    let v = vec![1, 2, 3];
+
+    let handle = thread::spawn(|| {
+        println!("Here's a vector: {v:?}");
+    });
+
+    drop(v); // oh no!
+
+    handle.join().unwrap();
+}
 ```
 
 </Listing>
@@ -239,9 +334,9 @@ after automatic regeneration, look at listings/ch16-fearless-concurrency/listing
 
 ```text
 help: to force the closure to take ownership of `v` (and any other referenced variables), use the `move` keyword
-  |
+|
 6 |     let handle = thread::spawn(move || {
-  |                                ++++
+| ++++
 ```
 
 By adding the `move` keyword before the closure, we force the closure to take
@@ -252,7 +347,17 @@ should borrow the values. The modification to Listing 16-3 shown in Listing
 <Listing number="16-5" file-name="src/main.rs" caption="Using the `move` keyword to force a closure to take ownership of the values it uses">
 
 ```rust
-{{#rustdoc_include ../listings/ch16-fearless-concurrency/listing-16-05/src/main.rs}}
+use std::thread;
+
+fn main() {
+    let v = vec![1, 2, 3];
+
+    let handle = thread::spawn(move || {
+        println!("Here's a vector: {v:?}");
+    });
+
+    handle.join().unwrap();
+}
 ```
 
 </Listing>
@@ -265,7 +370,31 @@ closure’s environment, and we could no longer call `drop` on it in the main
 thread. We would get this compiler error instead:
 
 ```console
-{{#include ../listings/ch16-fearless-concurrency/output-only-01-move-drop/output.txt}}
+$ cargo run
+   Compiling threads v0.1.0 (file:///projects/threads)
+error[E0382]: use of moved value: `v`
+  --> src/main.rs:10:10
+|
+ 4 |     let v = vec![1, 2, 3];
+| - move occurs because `v` has type `Vec<i32>`, which does not implement the `Copy` trait
+ 5 |
+ 6 |     let handle = thread::spawn(move || {
+| ------- value moved into closure here
+ 7 |         println!("Here's a vector: {v:?}");
+| - variable moved due to use in closure
+...
+10 |     drop(v); // oh no!
+| ^ value used here after move
+|
+help: consider cloning the value before moving it into the closure
+|
+ 6 ~     let value = v.clone();
+ 7 ~     let handle = thread::spawn(move || {
+ 8 ~         println!("Here's a vector: {value:?}");
+|
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `threads` (bin "threads") due to 1 previous error
 ```
 
 Rust’s ownership rules have saved us again! We got an error from the code in

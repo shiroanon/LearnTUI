@@ -27,7 +27,29 @@ for five seconds before responding.
 <Listing number="21-10" file-name="src/main.rs" caption="Simulating a slow request by sleeping for five seconds">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-10/src/main.rs:here}}
+use std::{
+    fs,
+    io::{BufReader, prelude::*},
+    net::{TcpListener, TcpStream},
+    thread,
+    time::Duration,
+};
+// --snip--
+
+fn handle_connection(mut stream: TcpStream) {
+    // --snip--
+
+    let (status_line, filename) = match &request_line[..] {
+        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(5));
+            ("HTTP/1.1 200 OK", "hello.html")
+        }
+        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
+    };
+
+    // --snip--
+}
 ```
 
 </Listing>
@@ -120,7 +142,17 @@ handle each stream within the `for` loop.
 <Listing number="21-11" file-name="src/main.rs" caption="Spawning a new thread for each stream">
 
 ```rust,no_run
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-11/src/main.rs:here}}
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+
+        thread::spawn(|| {
+            handle_connection(stream);
+        });
+    }
+}
 ```
 
 </Listing>
@@ -150,7 +182,18 @@ struct we want to use instead of `thread::spawn`.
 <Listing number="21-12" file-name="src/main.rs" caption="Our ideal `ThreadPool` interface">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-12/src/main.rs:here}}
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let pool = ThreadPool::new(4);
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+
+        pool.execute(|| {
+            handle_connection(stream);
+        });
+    }
+}
 ```
 
 </Listing>
@@ -173,7 +216,16 @@ compiler errors from `cargo check` to drive our development. Here is the first
 error we get:
 
 ```console
-{{#include ../listings/ch21-web-server/listing-21-12/output.txt}}
+$ cargo check
+    Checking hello v0.1.0 (file:///projects/hello)
+error[E0433]: failed to resolve: use of undeclared type `ThreadPool`
+  --> src/main.rs:11:16
+|
+11 |     let pool = ThreadPool::new(4);
+| ^^^^^^^^^^ use of undeclared type `ThreadPool`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `hello` (bin "hello") due to 1 previous error
 ```
 
 Great! This error tells us we need a `ThreadPool` type or module, so we’ll
@@ -190,7 +242,7 @@ definition of a `ThreadPool` struct that we can have for now:
 <Listing file-name="src/lib.rs">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-01-define-threadpool-struct/src/lib.rs}}
+pub struct ThreadPool;
 ```
 
 </Listing>
@@ -202,7 +254,7 @@ crate by adding the following code to the top of _src/main.rs_:
 <Listing file-name="src/main.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-01-define-threadpool-struct/src/main.rs:here}}
+use hello::ThreadPool;
 ```
 
 </Listing>
@@ -211,7 +263,16 @@ This code still won’t work, but let’s check it again to get the next error t
 we need to address:
 
 ```console
-{{#include ../listings/ch21-web-server/no-listing-01-define-threadpool-struct/output.txt}}
+$ cargo check
+    Checking hello v0.1.0 (file:///projects/hello)
+error[E0599]: no function or associated item named `new` found for struct `ThreadPool` in the current scope
+  --> src/main.rs:12:28
+|
+12 |     let pool = ThreadPool::new(4);
+| ^^^ function or associated item not found in `ThreadPool`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `hello` (bin "hello") due to 1 previous error
 ```
 
 This error indicates that next we need to create an associated function named
@@ -223,7 +284,13 @@ characteristics:
 <Listing file-name="src/lib.rs">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-02-impl-threadpool-new/src/lib.rs}}
+pub struct ThreadPool;
+
+impl ThreadPool {
+    pub fn new(size: usize) -> ThreadPool {
+        ThreadPool
+    }
+}
 ```
 
 </Listing>
@@ -237,7 +304,16 @@ ignore --> section in Chapter 3.
 Let’s check the code again:
 
 ```console
-{{#include ../listings/ch21-web-server/no-listing-02-impl-threadpool-new/output.txt}}
+$ cargo check
+    Checking hello v0.1.0 (file:///projects/hello)
+error[E0599]: no method named `execute` found for struct `ThreadPool` in the current scope
+  --> src/main.rs:17:14
+|
+17 |         pool.execute(|| {
+| -----^^^^^^^ method not found in `ThreadPool`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `hello` (bin "hello") due to 1 previous error
 ```
 
 Now the error occurs because we don’t have an `execute` method on `ThreadPool`.
@@ -281,7 +357,14 @@ the thread will take to execute. Let’s create an `execute` method on
 <Listing file-name="src/lib.rs">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/no-listing-03-define-execute/src/lib.rs:here}}
+impl ThreadPool {
+    // --snip--
+    pub fn execute<F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+    }
+}
 ```
 
 </Listing>
@@ -295,7 +378,9 @@ Again, this is the simplest implementation of the `execute` method: It does
 nothing, but we’re only trying to make our code compile. Let’s check it again:
 
 ```console
-{{#include ../listings/ch21-web-server/no-listing-03-define-execute/output.txt}}
+$ cargo check
+    Checking hello v0.1.0 (file:///projects/hello)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s
 ```
 
 It compiles! But note that if you try `cargo run` and make a request in the
@@ -327,7 +412,22 @@ receives a zero by using the `assert!` macro, as shown in Listing 21-13.
 <Listing number="21-13" file-name="src/lib.rs" caption="Implementing `ThreadPool::new` to panic if `size` is zero">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-13/src/lib.rs:here}}
+impl ThreadPool {
+    /// Create a new ThreadPool.
+    ///
+    /// The size is the number of threads in the pool.
+    ///
+    /// # Panics
+    ///
+    /// The `new` function will panic if the size is zero.
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        ThreadPool
+    }
+
+    // --snip--
+}
 ```
 
 </Listing>
@@ -378,7 +478,27 @@ returned a `ThreadPool` instance containing them.
 <Listing number="21-14" file-name="src/lib.rs" caption="Creating a vector for `ThreadPool` to hold the threads">
 
 ```rust,ignore,not_desired_behavior
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-14/src/lib.rs:here}}
+use std::thread;
+
+pub struct ThreadPool {
+    threads: Vec<thread::JoinHandle<()>>,
+}
+
+impl ThreadPool {
+    // --snip--
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let mut threads = Vec::with_capacity(size);
+
+        for _ in 0..size {
+            // create some threads and store them in the vector
+        }
+
+        ThreadPool { threads }
+    }
+    // --snip--
+}
 ```
 
 </Listing>
@@ -448,7 +568,40 @@ Ready? Here is Listing 21-15 with one way to make the preceding modifications.
 <Listing number="21-15" file-name="src/lib.rs" caption="Modifying `ThreadPool` to hold `Worker` instances instead of holding threads directly">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-15/src/lib.rs:here}}
+use std::thread;
+
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+}
+
+impl ThreadPool {
+    // --snip--
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let mut workers = Vec::with_capacity(size);
+
+        for id in 0..size {
+            workers.push(Worker::new(id));
+        }
+
+        ThreadPool { workers }
+    }
+    // --snip--
+}
+
+struct Worker {
+    id: usize,
+    thread: thread::JoinHandle<()>,
+}
+
+impl Worker {
+    fn new(id: usize) -> Worker {
+        let thread = thread::spawn(|| {});
+
+        Worker { id, thread }
+    }
+}
 ```
 
 </Listing>
@@ -508,7 +661,32 @@ the channel.
 <Listing number="21-16" file-name="src/lib.rs" caption="Modifying `ThreadPool` to store the sender of a channel that transmits `Job` instances">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-16/src/lib.rs:here}}
+use std::{sync::mpsc, thread};
+
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Job>,
+}
+
+struct Job;
+
+impl ThreadPool {
+    // --snip--
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let (sender, receiver) = mpsc::channel();
+
+        let mut workers = Vec::with_capacity(size);
+
+        for id in 0..size {
+            workers.push(Worker::new(id));
+        }
+
+        ThreadPool { workers, sender }
+    }
+    // --snip--
+}
 ```
 
 </Listing>
@@ -524,7 +702,35 @@ closure. The code in Listing 21-17 won’t quite compile yet.
 <Listing number="21-17" file-name="src/lib.rs" caption="Passing the receiver to each `Worker`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-17/src/lib.rs:here}}
+impl ThreadPool {
+    // --snip--
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let (sender, receiver) = mpsc::channel();
+
+        let mut workers = Vec::with_capacity(size);
+
+        for id in 0..size {
+            workers.push(Worker::new(id, receiver));
+        }
+
+        ThreadPool { workers, sender }
+    }
+    // --snip--
+}
+
+// --snip--
+
+impl Worker {
+    fn new(id: usize, receiver: mpsc::Receiver<Job>) -> Worker {
+        let thread = thread::spawn(|| {
+            receiver;
+        });
+
+        Worker { id, thread }
+    }
+}
 ```
 
 </Listing>
@@ -535,7 +741,33 @@ We’ve made some small and straightforward changes: We pass the receiver into
 When we try to check this code, we get this error:
 
 ```console
-{{#include ../listings/ch21-web-server/listing-21-17/output.txt}}
+$ cargo check
+    Checking hello v0.1.0 (file:///projects/hello)
+error[E0382]: use of moved value: `receiver`
+  --> src/lib.rs:26:42
+|
+21 |         let (sender, receiver) = mpsc::channel();
+| -------- move occurs because `receiver` has type `std::sync::mpsc::Receiver<Job>`, which does not implement the `Copy` trait
+...
+25 |         for id in 0..size {
+| ----------------- inside of this loop
+26 |             workers.push(Worker::new(id, receiver));
+| ^^^^^^^^ value moved here, in previous iteration of loop
+|
+note: consider changing this parameter type in method `new` to borrow instead if owning the value isn't necessary
+  --> src/lib.rs:47:33
+|
+47 |     fn new(id: usize, receiver: mpsc::Receiver<Job>) -> Worker {
+| --- in this method       ^^^^^^^^^^^^^^^^^^^ this parameter takes ownership of the value
+help: consider moving the expression out of the loop so it is only moved once
+|
+25 ~         let mut value = Worker::new(id, receiver);
+26 ~         for id in 0..size {
+27 ~             workers.push(value);
+|
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `hello` (lib) due to 1 previous error
 ```
 
 The code is trying to pass `receiver` to multiple `Worker` instances. This
@@ -559,7 +791,40 @@ the receiver at a time. Listing 21-18 shows the changes we need to make.
 <Listing number="21-18" file-name="src/lib.rs" caption="Sharing the receiver among the `Worker` instances using `Arc` and `Mutex`">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-18/src/lib.rs:here}}
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    thread,
+};
+// --snip--
+
+impl ThreadPool {
+    // --snip--
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        let (sender, receiver) = mpsc::channel();
+
+        let receiver = Arc::new(Mutex::new(receiver));
+
+        let mut workers = Vec::with_capacity(size);
+
+        for id in 0..size {
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
+        }
+
+        ThreadPool { workers, sender }
+    }
+
+    // --snip--
+}
+
+// --snip--
+
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        // --snip--
+    }
+}
 ```
 
 </Listing>
@@ -581,7 +846,24 @@ allow us to make long types shorter for ease of use. Look at Listing 21-19.
 <Listing number="21-19" file-name="src/lib.rs" caption="Creating a `Job` type alias for a `Box` that holds each closure and then sending the job down the channel">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-19/src/lib.rs:here}}
+// --snip--
+
+type Job = Box<dyn FnOnce() + Send + 'static>;
+
+impl ThreadPool {
+    // --snip--
+
+    pub fn execute<F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let job = Box::new(f);
+
+        self.sender.send(job).unwrap();
+    }
+}
+
+// --snip--
 ```
 
 </Listing>
@@ -604,7 +886,23 @@ shown in Listing 21-20 to `Worker::new`.
 <Listing number="21-20" file-name="src/lib.rs" caption="Receiving and executing the jobs in the `Worker` instance’s thread">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-20/src/lib.rs:here}}
+// --snip--
+
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            loop {
+                let job = receiver.lock().unwrap().recv().unwrap();
+
+                println!("Worker {id} got a job; executing.");
+
+                job();
+            }
+        });
+
+        Worker { id, thread }
+    }
+}
 ```
 
 </Listing>
@@ -641,23 +939,23 @@ $ cargo run
    Compiling hello v0.1.0 (file:///projects/hello)
 warning: field `workers` is never read
  --> src/lib.rs:7:5
-  |
+|
 6 | pub struct ThreadPool {
-  |            ---------- field in this struct
+| ---------- field in this struct
 7 |     workers: Vec<Worker>,
-  |     ^^^^^^^
-  |
+| ^^^^^^^
+|
   = note: `#[warn(dead_code)]` on by default
 
 warning: fields `id` and `thread` are never read
   --> src/lib.rs:48:5
-   |
+|
 47 | struct Worker {
-   |        ------ fields in this struct
+| ------ fields in this struct
 48 |     id: usize,
-   |     ^^
+| ^^
 49 |     thread: thread::JoinHandle<()>,
-   |     ^^^^^^
+| ^^^^^^
 
 warning: `hello` (lib) generated 2 warnings
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.91s
@@ -697,7 +995,21 @@ Listing 21-21.
 <Listing number="21-21" file-name="src/lib.rs" caption="An alternative implementation of `Worker::new` using `while let`">
 
 ```rust,ignore,not_desired_behavior
-{{#rustdoc_include ../listings/ch21-web-server/listing-21-21/src/lib.rs:here}}
+// --snip--
+
+impl Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(move || {
+            while let Ok(job) = receiver.lock().unwrap().recv() {
+                println!("Worker {id} got a job; executing.");
+
+                job();
+            }
+        });
+
+        Worker { id, thread }
+    }
+}
 ```
 
 </Listing>

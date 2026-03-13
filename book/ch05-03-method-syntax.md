@@ -22,7 +22,29 @@ in Listing 5-13.
 <Listing number="5-13" file-name="src/main.rs" caption="Defining an `area` method on the `Rectangle` struct">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-13/src/main.rs}}
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    println!(
+        "The area of the rectangle is {} square pixels.",
+        rect1.area()
+    );
+}
 ```
 
 </Listing>
@@ -71,7 +93,22 @@ fields. For example, we can define a method on `Rectangle` that is also named
 <Listing file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/no-listing-06-method-field-interaction/src/main.rs:here}}
+impl Rectangle {
+    fn width(&self) -> bool {
+        self.width > 0
+    }
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    if rect1.width() {
+        println!("The rectangle has a nonzero width; it is {}", rect1.width);
+    }
+}
 ```
 
 </Listing>
@@ -150,7 +187,23 @@ the program shown in Listing 5-14.
 <Listing number="5-14" file-name="src/main.rs" caption="Using the as-yet-unwritten `can_hold` method">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-14/src/main.rs}}
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+    let rect2 = Rectangle {
+        width: 10,
+        height: 40,
+    };
+    let rect3 = Rectangle {
+        width: 60,
+        height: 45,
+    };
+
+    println!("Can rect1 hold rect2? {}", rect1.can_hold(&rect2));
+    println!("Can rect1 hold rect3? {}", rect1.can_hold(&rect3));
+}
 ```
 
 </Listing>
@@ -181,7 +234,15 @@ Listing 5-13, shown in Listing 5-15.
 <Listing number="5-15" file-name="src/main.rs" caption="Implementing the `can_hold` method on `Rectangle` that takes another `Rectangle` instance as a parameter">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-15/src/main.rs:here}}
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && self.height > other.height
+    }
+}
 ```
 
 </Listing>
@@ -211,7 +272,14 @@ value twice:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/no-listing-03-associated-functions/src/main.rs:here}}
+impl Rectangle {
+    fn square(size: u32) -> Self {
+        Self {
+            width: size,
+            height: size,
+        }
+    }
+}
 ```
 
 The `Self` keywords in the return type and in the body of the function are
@@ -233,7 +301,17 @@ its own `impl` block.
 <Listing number="5-16" caption="Rewriting Listing 5-15 using multiple `impl` blocks">
 
 ```rust
-{{#rustdoc_include ../listings/ch05-using-structs-to-structure-related-data/listing-05-16/src/main.rs:here}}
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+}
+
+impl Rectangle {
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && self.height > other.height
+    }
+}
 ```
 
 </Listing>

@@ -81,7 +81,15 @@ a request to it, and returns the text of the `<title>` element (see Listing
 <Listing number="17-1" file-name="src/main.rs" caption="Defining an async function to get the title element from an HTML page">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-01/src/main.rs:all}}
+use trpl::Html;
+
+async fn page_title(url: &str) -> Option<String> {
+    let response = trpl::get(url).await;
+    let response_text = response.text().await;
+    Html::parse(&response_text)
+        .select_first("title")
+        .map(|title| title.inner_html())
+}
 ```
 
 </Listing>
@@ -137,7 +145,7 @@ together with `await` between them, as shown in Listing 17-2.
 <Listing number="17-2" file-name="src/main.rs" caption="Chaining with the `await` keyword">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-02/src/main.rs:chaining}}
+    let response_text = trpl::get(url).await.text().await;
 ```
 
 </Listing>
@@ -203,7 +211,14 @@ Unfortunately, this code doesn’t compile yet.
 <Listing number="17-3" file-name="src/main.rs" caption="Calling the `page_title` function from `main` with a user-supplied argument">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-03/src/main.rs:main}}
+async fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let url = &args[1];
+    match page_title(url).await {
+        Some(title) => println!("The title for {url} was {title}"),
+        None => println!("{url} had no title"),
+    }
+}
 ```
 
 </Listing>
@@ -227,9 +242,9 @@ copy just the compiler error
 ```text
 error[E0752]: `main` function is not allowed to be `async`
  --> src/main.rs:6:1
-  |
+|
 6 | async fn main() {
-  | ^^^^^^^^^^^^^^^ `main` function is not allowed to be `async`
+| ^^^^^^^^^^^^^^^ `main` function is not allowed to be `async`
 ```
 
 The reason `main` can’t be marked `async` is that async code needs a _runtime_:
@@ -267,7 +282,17 @@ result of the `page_title` call, as in Listing 17-4.
 <!-- should_panic,noplayground because mdbook test does not pass args -->
 
 ```rust,should_panic,noplayground
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-04/src/main.rs:run}}
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    trpl::block_on(async {
+        let url = &args[1];
+        match page_title(url).await {
+            Some(title) => println!("The title for {url} was {title}"),
+            None => println!("{url} had no title"),
+        }
+    })
+}
 ```
 
 </Listing>
@@ -302,7 +327,11 @@ as if you’d written an enum like this to save the current state at each await
 point:
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/no-listing-state-machine/src/lib.rs:enum}}
+enum PageTitleFuture<'a> {
+    Initial { url: &'a str },
+    GetAwaitPoint { url: &'a str },
+    TextAwaitPoint { response: trpl::Response },
+}
 ```
 
 Writing the code to transition between each state by hand would be tedious and
@@ -346,7 +375,36 @@ command line and race them by selecting whichever future finishes first.
 <!-- should_panic,noplayground because mdbook does not pass args -->
 
 ```rust,should_panic,noplayground
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-05/src/main.rs:all}}
+use trpl::{Either, Html};
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    trpl::block_on(async {
+        let title_fut_1 = page_title(&args[1]);
+        let title_fut_2 = page_title(&args[2]);
+
+        let (url, maybe_title) =
+            match trpl::select(title_fut_1, title_fut_2).await {
+                Either::Left(left) => left,
+                Either::Right(right) => right,
+            };
+
+        println!("{url} returned first");
+        match maybe_title {
+            Some(title) => println!("Its page title was: '{title}'"),
+            None => println!("It had no title."),
+        }
+    })
+}
+
+async fn page_title(url: &str) -> (&str, Option<String>) {
+    let response_text = trpl::get(url).await.text().await;
+    let title = Html::parse(&response_text)
+        .select_first("title")
+        .map(|title| title.inner_html());
+    (url, title)
+}
 ```
 
 </Listing>

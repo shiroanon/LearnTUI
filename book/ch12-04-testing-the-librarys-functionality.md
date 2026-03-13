@@ -38,7 +38,23 @@ the query. Listing 12-15 shows this test.
 <Listing number="12-15" file-name="src/lib.rs" caption="Creating a failing test for the `search` function for the functionality we wish we had">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-15/src/lib.rs:here}}
+// --snip--
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_result() {
+        let query = "duct";
+        let contents = "\
+Rust:
+safe, fast, productive.
+Pick three.";
+
+        assert_eq!(vec!["safe, fast, productive."], search(query, contents));
+    }
+}
 ```
 
 </Listing>
@@ -60,7 +76,9 @@ fast, productive."`.
 <Listing number="12-16" file-name="src/lib.rs" caption="Defining just enough of the `search` function so that calling it won’t panic">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-16/src/lib.rs:here}}
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    vec![]
+}
 ```
 
 </Listing>
@@ -84,7 +102,22 @@ If we forget the lifetime annotations and try to compile this function, we’ll
 get this error:
 
 ```console
-{{#include ../listings/ch12-an-io-project/output-only-02-missing-lifetimes/output.txt}}
+$ cargo build
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+error[E0106]: missing lifetime specifier
+ --> src/lib.rs:1:51
+|
+1 | pub fn search(query: &str, contents: &str) -> Vec<&str> {
+| ----            ----         ^ expected named lifetime parameter
+|
+  = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `query` or `contents`
+help: consider introducing a named lifetime parameter
+|
+1 | pub fn search<'a>(query: &'a str, contents: &'a str) -> Vec<&'a str> {
+| ++++         ++                 ++              ++
+
+For more information about this error, try `rustc --explain E0106`.
+error: could not compile `minigrep` (lib) due to 1 previous error
 ```
 
 Rust can’t know which of the two parameters we need for the output, so we need
@@ -123,7 +156,11 @@ this won’t compile yet.
 <Listing number="12-17" file-name="src/lib.rs" caption="Iterating through each line in `contents`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-17/src/lib.rs:here}}
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    for line in contents.lines() {
+        // do something with line
+    }
+}
 ```
 
 </Listing>
@@ -143,7 +180,13 @@ Listing 12-18. Note that this still won’t compile yet.
 <Listing number="12-18" file-name="src/lib.rs" caption="Adding functionality to see whether the line contains the string in `query`">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-18/src/lib.rs:here}}
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    for line in contents.lines() {
+        if line.contains(query) {
+            // do something with line
+        }
+    }
+}
 ```
 
 </Listing>
@@ -162,7 +205,19 @@ we return the vector, as shown in Listing 12-19.
 <Listing number="12-19" file-name="src/lib.rs" caption="Storing the lines that match so that we can return them">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-19/src/lib.rs:here}}
+// ANCHOR: ch13
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    let mut results = Vec::new();
+
+    for line in contents.lines() {
+        if line.contains(query) {
+            results.push(line);
+        }
+    }
+
+    results
+}
+// ANCHOR_END: ch13
 ```
 
 </Listing>
@@ -171,7 +226,27 @@ Now the `search` function should return only the lines that contain `query`,
 and our test should pass. Let’s run the test:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-19/output.txt}}
+$ cargo test
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
+     Running unittests src/lib.rs (target/debug/deps/minigrep-9cd200e5fac0fc94)
+
+running 1 test
+test tests::one_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/minigrep-9cd200e5fac0fc94)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests minigrep
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 Our test passed, so we know it works!
@@ -187,20 +262,33 @@ Now the entire program should work! Let’s try it out, first with a word that
 should return exactly one line from the Emily Dickinson poem: _frog_.
 
 ```console
-{{#include ../listings/ch12-an-io-project/no-listing-02-using-search-in-run/output.txt}}
+$ cargo run -- frog poem.txt
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running `target/debug/minigrep frog poem.txt`
+How public, like a frog
 ```
 
 Cool! Now let’s try a word that will match multiple lines, like _body_:
 
 ```console
-{{#include ../listings/ch12-an-io-project/output-only-03-multiple-matches/output.txt}}
+$ cargo run -- body poem.txt
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/minigrep body poem.txt`
+I'm nobody! Who are you?
+Are you nobody, too?
+How dreary to be somebody!
 ```
 
 And finally, let’s make sure that we don’t get any lines when we search for a
 word that isn’t anywhere in the poem, such as _monomorphization_:
 
 ```console
-{{#include ../listings/ch12-an-io-project/output-only-04-no-matches/output.txt}}
+$ cargo run -- monomorphization poem.txt
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/minigrep monomorphization poem.txt`
 ```
 
 Excellent! We’ve built our own mini version of a classic tool and learned a lot

@@ -25,7 +25,10 @@ then explore how to solve it. Listing 17-14 introduces a `slow` function.
 <Listing number="17-14" caption="Using `thread::sleep` to simulate slow operations" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-14/src/main.rs:slow}}
+fn slow(name: &str, ms: u64) {
+    thread::sleep(Duration::from_millis(ms));
+    println!("'{name}' ran for {ms}ms");
+}
 ```
 
 </Listing>
@@ -41,7 +44,26 @@ a pair of futures.
 <Listing number="17-15" caption="Calling the `slow` function to simulate slow operations" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-15/src/main.rs:slow-futures}}
+        let a = async {
+            println!("'a' started.");
+            slow("a", 30);
+            slow("a", 10);
+            slow("a", 20);
+            trpl::sleep(Duration::from_millis(50)).await;
+            println!("'a' finished.");
+        };
+
+        let b = async {
+            println!("'b' started.");
+            slow("b", 75);
+            slow("b", 10);
+            slow("b", 15);
+            slow("b", 350);
+            trpl::sleep(Duration::from_millis(50)).await;
+            println!("'b' finished.");
+        };
+
+        trpl::select(a, b).await;
 ```
 
 </Listing>
@@ -86,7 +108,31 @@ as shown in Listing 17-16.
 <Listing number="17-16" caption="Using `trpl::sleep` to let operations switch off making progress" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-16/src/main.rs:here}}
+        let one_ms = Duration::from_millis(1);
+
+        let a = async {
+            println!("'a' started.");
+            slow("a", 30);
+            trpl::sleep(one_ms).await;
+            slow("a", 10);
+            trpl::sleep(one_ms).await;
+            slow("a", 20);
+            trpl::sleep(one_ms).await;
+            println!("'a' finished.");
+        };
+
+        let b = async {
+            println!("'b' started.");
+            slow("b", 75);
+            trpl::sleep(one_ms).await;
+            slow("b", 10);
+            trpl::sleep(one_ms).await;
+            slow("b", 15);
+            trpl::sleep(one_ms).await;
+            slow("b", 350);
+            trpl::sleep(one_ms).await;
+            println!("'b' finished.");
+        };
 ```
 
 </Listing>
@@ -126,7 +172,29 @@ all those `trpl::sleep` calls with `trpl::yield_now`.
 <Listing number="17-17" caption="Using `yield_now` to let operations switch off making progress" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-17/src/main.rs:yields}}
+        let a = async {
+            println!("'a' started.");
+            slow("a", 30);
+            trpl::yield_now().await;
+            slow("a", 10);
+            trpl::yield_now().await;
+            slow("a", 20);
+            trpl::yield_now().await;
+            println!("'a' finished.");
+        };
+
+        let b = async {
+            println!("'b' started.");
+            slow("b", 75);
+            trpl::yield_now().await;
+            slow("b", 10);
+            trpl::yield_now().await;
+            slow("b", 15);
+            trpl::yield_now().await;
+            slow("b", 350);
+            trpl::yield_now().await;
+            println!("'b' finished.");
+        };
 ```
 
 </Listing>
@@ -169,7 +237,17 @@ future.
 <Listing number="17-18" caption="Using our imagined `timeout` to run a slow operation with a time limit" file-name="src/main.rs">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-18/src/main.rs:here}}
+        let slow = async {
+            trpl::sleep(Duration::from_secs(5)).await;
+            "Finally finished"
+        };
+
+        match timeout(slow, Duration::from_secs(2)).await {
+            Ok(message) => println!("Succeeded with '{message}'"),
+            Err(duration) => {
+                println!("Failed after {} seconds", duration.as_secs())
+            }
+        }
 ```
 
 </Listing>
@@ -193,7 +271,12 @@ Listing 17-19 shows this declaration.
 <Listing number="17-19" caption="Defining the signature of `timeout`" file-name="src/main.rs">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-19/src/main.rs:declaration}}
+async fn timeout<F: Future>(
+    future_to_try: F,
+    max_time: Duration,
+) -> Result<F::Output, Duration> {
+    // Here is where our implementation will go!
+}
 ```
 
 </Listing>
@@ -209,7 +292,19 @@ In Listing 17-20, we implement `timeout` by matching on the result of awaiting
 <Listing number="17-20" caption="Defining `timeout` with `select` and `sleep`" file-name="src/main.rs">
 
 ```rust
-{{#rustdoc_include ../listings/ch17-async-await/listing-17-20/src/main.rs:implementation}}
+use trpl::Either;
+
+// --snip--
+
+async fn timeout<F: Future>(
+    future_to_try: F,
+    max_time: Duration,
+) -> Result<F::Output, Duration> {
+    match trpl::select(future_to_try, trpl::sleep(max_time)).await {
+        Either::Left(output) => Ok(output),
+        Either::Right(_) => Err(max_time),
+    }
+}
 ```
 
 </Listing>

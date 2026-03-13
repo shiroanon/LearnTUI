@@ -70,7 +70,9 @@ Listing 18-3 shows how to define a trait named `Draw` with one method named
 <Listing number="18-3" file-name="src/lib.rs" caption="Definition of the `Draw` trait">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-03/src/lib.rs}}
+pub trait Draw {
+    fn draw(&self);
+}
 ```
 
 </Listing>
@@ -84,7 +86,9 @@ in Chapter 10. Next comes some new syntax: Listing 18-4 defines a struct named
 <Listing number="18-4" file-name="src/lib.rs" caption="Definition of the `Screen` struct with a `components` field holding a vector of trait objects that implement the `Draw` trait">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-04/src/lib.rs:here}}
+pub struct Screen {
+    pub components: Vec<Box<dyn Draw>>,
+}
 ```
 
 </Listing>
@@ -95,7 +99,13 @@ On the `Screen` struct, we’ll define a method named `run` that will call the
 <Listing number="18-5" file-name="src/lib.rs" caption="A `run` method on `Screen` that calls the `draw` method on each component">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-05/src/lib.rs:here}}
+impl Screen {
+    pub fn run(&self) {
+        for component in self.components.iter() {
+            component.draw();
+        }
+    }
+}
 ```
 
 </Listing>
@@ -110,7 +120,20 @@ as in Listing 18-6.
 <Listing number="18-6" file-name="src/lib.rs" caption="An alternate implementation of the `Screen` struct and its `run` method using generics and trait bounds">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-06/src/lib.rs:here}}
+pub struct Screen<T: Draw> {
+    pub components: Vec<T>,
+}
+
+impl<T> Screen<T>
+where
+    T: Draw,
+{
+    pub fn run(&self) {
+        for component in self.components.iter() {
+            component.draw();
+        }
+    }
+}
 ```
 
 </Listing>
@@ -136,7 +159,17 @@ might have fields for `width`, `height`, and `label`, as shown in Listing 18-7.
 <Listing number="18-7" file-name="src/lib.rs" caption="A `Button` struct that implements the `Draw` trait">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch18-oop/listing-18-07/src/lib.rs:here}}
+pub struct Button {
+    pub width: u32,
+    pub height: u32,
+    pub label: String,
+}
+
+impl Draw for Button {
+    fn draw(&self) {
+        // code to actually draw a button
+    }
+}
 ```
 
 </Listing>
@@ -158,7 +191,19 @@ on the `SelectBox` type as well, as shown in Listing 18-8.
 <Listing number="18-8" file-name="src/main.rs" caption="Another crate using `gui` and implementing the `Draw` trait on a `SelectBox` struct">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch18-oop/listing-18-08/src/main.rs:here}}
+use gui::Draw;
+
+struct SelectBox {
+    width: u32,
+    height: u32,
+    options: Vec<String>,
+}
+
+impl Draw for SelectBox {
+    fn draw(&self) {
+        // code to actually draw a select box
+    }
+}
 ```
 
 </Listing>
@@ -172,7 +217,30 @@ components. Listing 18-9 shows this implementation.
 <Listing number="18-9" file-name="src/main.rs" caption="Using trait objects to store values of different types that implement the same trait">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch18-oop/listing-18-09/src/main.rs:here}}
+use gui::{Button, Screen};
+
+fn main() {
+    let screen = Screen {
+        components: vec![
+            Box::new(SelectBox {
+                width: 75,
+                height: 10,
+                options: vec![
+                    String::from("Yes"),
+                    String::from("Maybe"),
+                    String::from("No"),
+                ],
+            }),
+            Box::new(Button {
+                width: 50,
+                height: 10,
+                label: String::from("OK"),
+            }),
+        ],
+    };
+
+    screen.run();
+}
 ```
 
 </Listing>
@@ -205,7 +273,15 @@ with a `String` as a component.
 <Listing number="18-10" file-name="src/main.rs" caption="Attempting to use a type that doesn’t implement the trait object’s trait">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch18-oop/listing-18-10/src/main.rs}}
+use gui::Screen;
+
+fn main() {
+    let screen = Screen {
+        components: vec![Box::new(String::from("Hi"))],
+    };
+
+    screen.run();
+}
 ```
 
 </Listing>
@@ -213,7 +289,19 @@ with a `String` as a component.
 We’ll get this error because `String` doesn’t implement the `Draw` trait:
 
 ```console
-{{#include ../listings/ch18-oop/listing-18-10/output.txt}}
+$ cargo run
+   Compiling gui v0.1.0 (file:///projects/gui)
+error[E0277]: the trait bound `String: Draw` is not satisfied
+ --> src/main.rs:5:26
+|
+5 |         components: vec![Box::new(String::from("Hi"))],
+| ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Draw` is not implemented for `String`
+|
+  = help: the trait `Draw` is implemented for `Button`
+  = note: required for the cast from `Box<String>` to `Box<dyn Draw>`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `gui` (bin "gui") due to 1 previous error
 ```
 
 This error lets us know that either we’re passing something to `Screen` that we

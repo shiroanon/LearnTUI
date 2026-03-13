@@ -82,7 +82,18 @@ Listing 20-35 shows a slightly simplified definition of the `vec!` macro.
 <Listing number="20-35" file-name="src/lib.rs" caption="A simplified version of the `vec!` macro definition">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-35/src/lib.rs}}
+#[macro_export]
+macro_rules! vec {
+    ( $( $x:expr ),* ) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                temp_vec.push($x);
+            )*
+            temp_vec
+        }
+    };
+}
 ```
 
 </Listing>
@@ -212,7 +223,15 @@ programmer to write code like Listing 20-37 using our crate.
 <Listing number="20-37" file-name="src/main.rs" caption="The code a user of our crate will be able to write when using our procedural macro">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-37/src/main.rs}}
+use hello_macro::HelloMacro;
+use hello_macro_derive::HelloMacro;
+
+#[derive(HelloMacro)]
+struct Pancakes;
+
+fn main() {
+    Pancakes::hello_macro();
+}
 ```
 
 </Listing>
@@ -230,7 +249,9 @@ function.
 <Listing file-name="src/lib.rs" number="20-38" caption="A simple trait that we will use with the `derive` macro">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-38/hello_macro/src/lib.rs}}
+pub trait HelloMacro {
+    fn hello_macro();
+}
 ```
 
 </Listing>
@@ -241,7 +262,19 @@ the trait to achieve the desired functionality, as in Listing 20-39.
 <Listing number="20-39" file-name="src/main.rs" caption="How it would look if users wrote a manual implementation of the `HelloMacro` trait">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-39/pancakes/src/main.rs}}
+use hello_macro::HelloMacro;
+
+struct Pancakes;
+
+impl HelloMacro for Pancakes {
+    fn hello_macro() {
+        println!("Hello, Macro! My name is Pancakes!");
+    }
+}
+
+fn main() {
+    Pancakes::hello_macro();
+}
 ```
 
 </Listing>
@@ -285,7 +318,7 @@ _Cargo.toml_ file for `hello_macro_derive`:
 <Listing file-name="hello_macro_derive/Cargo.toml">
 
 ```toml
-{{#include ../listings/ch20-advanced-features/listing-20-40/hello_macro/hello_macro_derive/Cargo.toml:6:12}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch20-advanced-features/listing-20-40/hello_macro/hello_macro_derive/Cargo.toml:6
 ```
 
 </Listing>
@@ -297,7 +330,18 @@ won’t compile until we add a definition for the `impl_hello_macro` function.
 <Listing number="20-40" file-name="hello_macro_derive/src/lib.rs" caption="Code that most procedural macro crates will require in order to process Rust code">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-40/hello_macro/hello_macro_derive/src/lib.rs}}
+use proc_macro::TokenStream;
+use quote::quote;
+
+#[proc_macro_derive(HelloMacro)]
+pub fn hello_macro_derive(input: TokenStream) -> TokenStream {
+    // Construct a representation of Rust code as a syntax tree
+    // that we can manipulate.
+    let ast = syn::parse(input).unwrap();
+
+    // Build the trait implementation.
+    impl_hello_macro(&ast)
+}
 ```
 
 </Listing>
@@ -387,7 +431,17 @@ into a `DeriveInput` instance, let’s generate the code that implements the
 <Listing number="20-42" file-name="hello_macro_derive/src/lib.rs" caption="Implementing the `HelloMacro` trait using the parsed Rust code">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch20-advanced-features/listing-20-42/hello_macro/hello_macro_derive/src/lib.rs:here}}
+fn impl_hello_macro(ast: &syn::DeriveInput) -> TokenStream {
+    let name = &ast.ident;
+    let generated = quote! {
+        impl HelloMacro for #name {
+            fn hello_macro() {
+                println!("Hello, Macro! My name is {}!", stringify!(#name));
+            }
+        }
+    };
+    generated.into()
+}
 ```
 
 </Listing>
@@ -437,7 +491,7 @@ would be regular dependencies; if not, you can specify them as `path`
 dependencies as follows:
 
 ```toml
-{{#include ../listings/ch20-advanced-features/no-listing-21-pancakes/pancakes/Cargo.toml:6:8}}
+// File not found: /home/shiro/Desktop/Projects/LearnTUI/listings/ch20-advanced-features/no-listing-21-pancakes/pancakes/Cargo.toml:6
 ```
 
 Put the code in Listing 20-37 into _src/main.rs_, and run `cargo run`: It

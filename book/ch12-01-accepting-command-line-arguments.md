@@ -42,7 +42,12 @@ line arguments passed to it and then collect the values into a vector.
 <Listing number="12-1" file-name="src/main.rs" caption="Collecting the command line arguments into a vector and printing them">
 
 ```rust
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-01/src/main.rs}}
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    dbg!(args);
+}
 ```
 
 </Listing>
@@ -78,11 +83,25 @@ Finally, we print the vector using the debug macro. Let’s try running the code
 first with no arguments and then with two arguments:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-01/output.txt}}
+$ cargo run
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running `target/debug/minigrep`
+[src/main.rs:5:5] args = [
+    "target/debug/minigrep",
+]
 ```
 
 ```console
-{{#include ../listings/ch12-an-io-project/output-only-01-with-args/output.txt}}
+$ cargo run -- needle haystack
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.57s
+     Running `target/debug/minigrep needle haystack`
+[src/main.rs:5:5] args = [
+    "target/debug/minigrep",
+    "needle",
+    "haystack",
+]
 ```
 
 Notice that the first value in the vector is `"target/debug/minigrep"`, which
@@ -103,7 +122,17 @@ Listing 12-2.
 <Listing number="12-2" file-name="src/main.rs" caption="Creating variables to hold the query argument and file path argument">
 
 ```rust,should_panic,noplayground
-{{#rustdoc_include ../listings/ch12-an-io-project/listing-12-02/src/main.rs}}
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let query = &args[1];
+    let file_path = &args[2];
+
+    println!("Searching for {query}");
+    println!("In file {file_path}");
+}
 ```
 
 </Listing>
@@ -120,7 +149,12 @@ working as we intend. Let’s run this program again with the arguments `test`
 and `sample.txt`:
 
 ```console
-{{#include ../listings/ch12-an-io-project/listing-12-02/output.txt}}
+$ cargo run -- test sample.txt
+   Compiling minigrep v0.1.0 (file:///projects/minigrep)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/minigrep test sample.txt`
+Searching for test
+In file sample.txt
 ```
 
 Great, the program is working! The values of the arguments we need are being

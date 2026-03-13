@@ -19,7 +19,13 @@ _src/front_of_house.rs_ file in Listing 7-22.
 <Listing number="7-21" file-name="src/lib.rs" caption="Declaring the `front_of_house` module whose body will be in *src/front_of_house.rs*">
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-21-and-22/src/lib.rs}}
+mod front_of_house;
+
+pub use crate::front_of_house::hosting;
+
+pub fn eat_at_restaurant() {
+    hosting::add_to_waitlist();
+}
 ```
 
 </Listing>
@@ -32,7 +38,9 @@ with the name `front_of_house`.
 <Listing number="7-22" file-name="src/front_of_house.rs" caption="Definitions inside the `front_of_house` module in *src/front_of_house.rs*">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/listing-07-21-and-22/src/front_of_house.rs}}
+pub mod hosting {
+    pub fn add_to_waitlist() {}
+}
 ```
 
 </Listing>
@@ -57,7 +65,7 @@ the declaration of the `hosting` module:
 <Listing file-name="src/front_of_house.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/no-listing-02-extracting-hosting/src/front_of_house.rs}}
+pub mod hosting;
 ```
 
 </Listing>
@@ -68,7 +76,7 @@ contain the definitions made in the `hosting` module:
 <Listing file-name="src/front_of_house/hosting.rs">
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch07-managing-growing-projects/no-listing-02-extracting-hosting/src/front_of_house/hosting.rs}}
+pub fn add_to_waitlist() {}
 ```
 
 </Listing>

@@ -35,7 +35,9 @@ behavior.
 <Listing number="10-12" file-name="src/lib.rs" caption="A `Summary` trait that consists of the behavior provided by a `summarize` method">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-12/src/lib.rs}}
+pub trait Summary {
+    fn summarize(&self) -> String;
+}
 ```
 
 </Listing>
@@ -69,7 +71,31 @@ already limited to 280 characters.
 <Listing number="10-13" file-name="src/lib.rs" caption="Implementing the `Summary` trait on the `NewsArticle` and `SocialPost` types">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-13/src/lib.rs:here}}
+pub struct NewsArticle {
+    pub headline: String,
+    pub location: String,
+    pub author: String,
+    pub content: String,
+}
+
+impl Summary for NewsArticle {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.headline, self.author, self.location)
+    }
+}
+
+pub struct SocialPost {
+    pub username: String,
+    pub content: String,
+    pub reply: bool,
+    pub repost: bool,
+}
+
+impl Summary for SocialPost {
+    fn summarize(&self) -> String {
+        format!("{}: {}", self.username, self.content)
+    }
+}
 ```
 
 </Listing>
@@ -90,7 +116,20 @@ types. Here’s an example of how a binary crate could use our `aggregator`
 library crate:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-01-calling-trait-method/src/main.rs}}
+use aggregator::{SocialPost, Summary};
+
+fn main() {
+    let post = SocialPost {
+        username: String::from("horse_ebooks"),
+        content: String::from(
+            "of course, as you probably already know, people",
+        ),
+        reply: false,
+        repost: false,
+    };
+
+    println!("1 new post: {}", post.summarize());
+}
 ```
 
 This code prints `1 new post: horse_ebooks: of course, as you probably already
@@ -134,7 +173,11 @@ Listing 10-12.
 <Listing number="10-14" file-name="src/lib.rs" caption="Defining a `Summary` trait with a default implementation of the `summarize` method">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-14/src/lib.rs:here}}
+pub trait Summary {
+    fn summarize(&self) -> String {
+        String::from("(Read more...)")
+    }
+}
 ```
 
 </Listing>
@@ -148,7 +191,17 @@ directly, we’ve provided a default implementation and specified that
 the `summarize` method on an instance of `NewsArticle`, like this:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-02-calling-default-impl/src/main.rs:here}}
+    let article = NewsArticle {
+        headline: String::from("Penguins win the Stanley Cup Championship!"),
+        location: String::from("Pittsburgh, PA, USA"),
+        author: String::from("Iceburgh"),
+        content: String::from(
+            "The Pittsburgh Penguins once again are the best \
+             hockey team in the NHL.",
+        ),
+    };
+
+    println!("New article available! {}", article.summarize());
 ```
 
 This code prints `New article available! (Read more...)`.
@@ -168,14 +221,24 @@ a small part of it. For example, we could define the `Summary` trait to have a
 `summarize_author` method:
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-03-default-impl-calls-other-methods/src/lib.rs:here}}
+pub trait Summary {
+    fn summarize_author(&self) -> String;
+
+    fn summarize(&self) -> String {
+        format!("(Read more from {}...)", self.summarize_author())
+    }
+}
 ```
 
 To use this version of `Summary`, we only need to define `summarize_author`
 when we implement the trait on a type:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-03-default-impl-calls-other-methods/src/lib.rs:impl}}
+impl Summary for SocialPost {
+    fn summarize_author(&self) -> String {
+        format!("@{}", self.username)
+    }
+}
 ```
 
 After we define `summarize_author`, we can call `summarize` on instances of the
@@ -186,7 +249,16 @@ definition of `summarize_author` that we’ve provided. Because we’ve implemen
 that looks like:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-03-default-impl-calls-other-methods/src/main.rs:here}}
+    let post = SocialPost {
+        username: String::from("horse_ebooks"),
+        content: String::from(
+            "of course, as you probably already know, people",
+        ),
+        reply: false,
+        repost: false,
+    };
+
+    println!("1 new post: {}", post.summarize());
 ```
 
 This code prints `1 new post: (Read more from @horse_ebooks...)`.
@@ -208,7 +280,9 @@ on its `item` parameter, which is of some type that implements the `Summary`
 trait. To do this, we use the `impl Trait` syntax, like this:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-04-traits-as-parameters/src/lib.rs:here}}
+pub fn notify(item: &impl Summary) {
+    println!("Breaking news! {}", item.summarize());
+}
 ```
 
 Instead of a concrete type for the `item` parameter, we specify the `impl`
@@ -300,7 +374,11 @@ fn some_function<T: Display + Clone, U: Clone + Debug>(t: &T, u: &U) -> i32 {
 we can use a `where` clause, like this:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-07-where-clause/src/lib.rs:here}}
+fn some_function<T, U>(t: &T, u: &U) -> i32
+where
+    T: Display + Clone,
+    U: Clone + Debug,
+{
 ```
 
 This function’s signature is less cluttered: The function name, parameter list,
@@ -313,7 +391,16 @@ We can also use the `impl Trait` syntax in the return position to return a
 value of some type that implements a trait, as shown here:
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-05-returning-impl-trait/src/lib.rs:here}}
+fn returns_summarizable() -> impl Summary {
+    SocialPost {
+        username: String::from("horse_ebooks"),
+        content: String::from(
+            "of course, as you probably already know, people",
+        ),
+        reply: false,
+        repost: false,
+    }
+}
 ```
 
 By using `impl Summary` for the return type, we specify that the
@@ -334,7 +421,30 @@ example, this code that returns either a `NewsArticle` or a `SocialPost` with
 the return type specified as `impl Summary` wouldn’t work:
 
 ```rust,ignore,does_not_compile
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/no-listing-06-impl-trait-returns-one-type/src/lib.rs:here}}
+fn returns_summarizable(switch: bool) -> impl Summary {
+    if switch {
+        NewsArticle {
+            headline: String::from(
+                "Penguins win the Stanley Cup Championship!",
+            ),
+            location: String::from("Pittsburgh, PA, USA"),
+            author: String::from("Iceburgh"),
+            content: String::from(
+                "The Pittsburgh Penguins once again are the best \
+                 hockey team in the NHL.",
+            ),
+        }
+    } else {
+        SocialPost {
+            username: String::from("horse_ebooks"),
+            content: String::from(
+                "of course, as you probably already know, people",
+            ),
+            reply: false,
+            repost: false,
+        }
+    }
+}
 ```
 
 Returning either a `NewsArticle` or a `SocialPost` isn’t allowed due to
@@ -358,7 +468,28 @@ _and_ the `Display` trait that enables printing.
 <Listing number="10-15" file-name="src/lib.rs" caption="Conditionally implementing methods on a generic type depending on trait bounds">
 
 ```rust,noplayground
-{{#rustdoc_include ../listings/ch10-generic-types-traits-and-lifetimes/listing-10-15/src/lib.rs}}
+use std::fmt::Display;
+
+struct Pair<T> {
+    x: T,
+    y: T,
+}
+
+impl<T> Pair<T> {
+    fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<T: Display + PartialOrd> Pair<T> {
+    fn cmp_display(&self) {
+        if self.x >= self.y {
+            println!("The largest member is x = {}", self.x);
+        } else {
+            println!("The largest member is y = {}", self.y);
+        }
+    }
+}
 ```
 
 </Listing>

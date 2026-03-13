@@ -34,7 +34,9 @@ Let’s try calling `panic!` in a simple program:
 <Listing file-name="src/main.rs">
 
 ```rust,should_panic,panics
-{{#rustdoc_include ../listings/ch09-error-handling/no-listing-01-panic/src/main.rs}}
+fn main() {
+    panic!("crash and burn");
+}
 ```
 
 </Listing>
@@ -42,7 +44,14 @@ Let’s try calling `panic!` in a simple program:
 When you run the program, you’ll see something like this:
 
 ```console
-{{#include ../listings/ch09-error-handling/no-listing-01-panic/output.txt}}
+$ cargo run
+   Compiling panic v0.1.0 (file:///projects/panic)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running `target/debug/panic`
+
+thread 'main' panicked at src/main.rs:2:5:
+crash and burn
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
 The call to `panic!` causes the error message contained in the last two lines.
@@ -70,7 +79,11 @@ attempts to access an index in a vector beyond the range of valid indexes.
 <Listing number="9-1" file-name="src/main.rs" caption="Attempting to access an element beyond the end of a vector, which will cause a call to `panic!`">
 
 ```rust,should_panic,panics
-{{#rustdoc_include ../listings/ch09-error-handling/listing-09-01/src/main.rs}}
+fn main() {
+    let v = vec![1, 2, 3];
+
+    v[99];
+}
 ```
 
 </Listing>
@@ -94,7 +107,14 @@ element at an index that doesn’t exist, Rust will stop execution and refuse to
 continue. Let’s try it and see:
 
 ```console
-{{#include ../listings/ch09-error-handling/listing-09-01/output.txt}}
+$ cargo run
+   Compiling panic v0.1.0 (file:///projects/panic)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running `target/debug/panic`
+
+thread 'main' panicked at src/main.rs:4:6:
+index out of bounds: the len is 3 but the index is 99
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
 This error points at line 4 of our _main.rs_ where we attempt to access index
